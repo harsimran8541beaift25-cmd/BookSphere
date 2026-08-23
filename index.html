@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Book Sphere — Library Catalog</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Source+Serif+4:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand" onclick="goHome()">
+      <span class="mark">BS</span> Book Sphere
+    </div>
+
+    <div class="topbar-right">
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <div class="account-area" id="accountArea"></div>
+    </div>
+  </div>
+
+  <main id="main"></main>
+
+  <footer>
+    Prototype catalog interface · reservations shown here are simulated for this session
+  </footer>
+
+</div>
+<div class="overlay" id="overlay" onclick="if(event.target===this) closeModal()">
+  <div class="book-card" id="bookCard"></div>
+</div>
+<div class="overlay" id="signinOverlay" onclick="if(event.target===this) closeSignIn()">
+
+  <div class="signin-card" id="signinCard">
+
+    <div class="bc-top">
+      <div>
+        <div class="call" id="authCall">Member Access</div>
+        <h2 id="authTitle">Sign In</h2>
+      </div>
+
+      <button class="close-btn" type="button" onclick="closeSignIn()">✕</button>
+    </div>
+
+    <div class="signin-body">
+
+      <!-- SIGN IN FORM -->
+      <form id="signinForm" onsubmit="return handleSignIn(event)">
+
+        <div class="field">
+          <label for="rollNo">Roll Number</label>
+          <input
+            type="text"
+            id="rollNo"
+            name="rollNo"
+            placeholder="e.g. 21CSE0142"
+            required
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="field">
+          <label for="pw">Password</label>
+          <input
+            type="password"
+            id="pw"
+            name="pw"
+            placeholder="Enter your password"
+            required
+          >
+        </div>
+
+        <button type="submit" class="signin-submit">
+          Sign In
+        </button>
+
+        <div class="auth-links">
+          <button type="button" onclick="openForgotPassword()">
+            Forgot Password?
+          </button>
+
+          <button type="button" onclick="openCreateAccount()">
+            Create Account
+          </button>
+        </div>
+
+      </form>
+
+
+      <!-- CREATE ACCOUNT FORM -->
+      <form id="createAccountForm" style="display:none;" onsubmit="return handleCreateAccount(event)">
+
+        <div class="field">
+          <label for="newRollNo">Roll Number</label>
+          <input
+            type="text"
+            id="newRollNo"
+            placeholder="e.g. 21CSE0142"
+            required
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="field">
+          <label for="newPassword">Create Password</label>
+          <input
+            type="password"
+            id="newPassword"
+            placeholder="Create a password"
+            required
+          >
+        </div>
+
+        <div class="field">
+          <label for="confirmPassword">Confirm Password</label>
+          <input
+            type="password"
+            id="confirmPassword"
+            placeholder="Enter password again"
+            required
+          >
+        </div>
+
+        <button type="submit" class="signin-submit">
+          Create Account
+        </button>
+
+        <div class="auth-links single-link">
+          <button type="button" onclick="showLoginForm()">
+            Already have an account? Sign In
+          </button>
+        </div>
+
+      </form>
+
+
+      <!-- FORGOT PASSWORD FORM -->
+      <form id="forgotPasswordForm" style="display:none;" onsubmit="return handleForgotPassword(event)">
+
+        <div class="field">
+          <label for="forgotRollNo">Roll Number</label>
+          <input
+            type="text"
+            id="forgotRollNo"
+            placeholder="Enter your roll number"
+            required
+            autocomplete="off"
+          >
+        </div>
+
+        <div class="field">
+          <label for="forgotNewPassword">New Password</label>
+          <input
+            type="password"
+            id="forgotNewPassword"
+            placeholder="Create a new password"
+            required
+          >
+        </div>
+
+        <div class="field">
+          <label for="forgotConfirmPassword">Confirm New Password</label>
+          <input
+            type="password"
+            id="forgotConfirmPassword"
+            placeholder="Enter new password again"
+            required
+          >
+        </div>
+
+        <button type="submit" class="signin-submit">
+          Reset Password
+        </button>
+
+        <div class="auth-links single-link">
+          <button type="button" onclick="showLoginForm()">
+            Back to Sign In
+          </button>
+        </div>
+
+      </form>
+
+
+      <div id="signinResult"></div>
+
+      <p class="signin-note">
+        You can browse books without signing in. Sign in is required when you want to purchase or reserve a book.
+      </p>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>

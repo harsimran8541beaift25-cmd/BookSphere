@@ -1,0 +1,2088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Book Sphere— Library Catalog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Source+Serif+4:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+    --pine:#29a8e0;
+    --pine-deep:#0f7bb3;
+    --parchment:#cdeafb;
+    --parchment-dim:#b9e0f5;
+    --ink:#123c52;
+    --ink-soft:#3f7391;
+    --brass:#4fc3f7;
+    --brass-light:#8fdcf7;
+    --maroon:#0e86c2;
+    --avail:#2ea88a;
+    --avail-bg:#d3f3e8;
+    --gone:#d1585c;
+    --gone-bg:#fbdede;
+    --radius:2px;
+    --shadow: 0 12px 30px rgba(20,120,170,0.18);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--parchment);
+    color:var(--ink);
+    font-family:'Source Serif 4', serif;
+    min-height:100vh;
+  }
+  h1,h2,h3,.display{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  .mono{
+    font-family:'IBM Plex Mono', monospace;
+    letter-spacing:0.02em;
+  }
+  a, button{font-family:inherit;}
+  button{cursor:pointer;}
+  .app{min-height:100vh; display:flex; flex-direction:column;}
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    background:var(--pine-deep);
+    color:var(--parchment-dim);
+    padding:16px 32px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:3px solid var(--brass);
+    gap:16px;
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:'Fraunces', serif;
+    font-weight:700;
+    font-size:1.15rem;
+    color:var(--parchment);
+    cursor:pointer;
+  }
+  .brand .mark{
+    width:26px;height:26px;
+    border:2px solid var(--brass);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.75rem;
+    color:var(--brass-light);
+    transform:rotate(-3deg);
+  }
+  .topbar-right{
+    display:flex;
+    align-items:center;
+    gap:22px;
+  }
+  .breadcrumb{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.78rem;
+    color:var(--brass-light);
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+  }
+  .breadcrumb span{cursor:pointer; opacity:0.85;}
+  .breadcrumb span:hover{text-decoration:underline;}
+  .breadcrumb .sep{opacity:0.4; cursor:default;}
+  .breadcrumb .sep:hover{text-decoration:none;}
+  .breadcrumb .current{color:var(--parchment); opacity:1; cursor:default;}
+
+  .signin-btn{
+    background:transparent;
+    border:1px solid var(--brass);
+    color:var(--brass-light);
+    padding:9px 18px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.74rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    font-weight:600;
+    border-radius:2px;
+    transition:background .16s ease, color .16s ease;
+    white-space:nowrap;
+    flex:none;
+  }
+  .signin-btn:hover{background:var(--brass); color:var(--pine-deep);}
+
+  /* ---------- Account menu ("My Book Sphere") ---------- */
+  .account-area{ position:relative; flex:none; }
+  .account-btn{
+    background:transparent;
+    border:1px solid var(--brass);
+    color:var(--parchment);
+    padding:7px 16px 7px 8px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    border-radius:2px;
+    transition:background .16s ease;
+    white-space:nowrap;
+  }
+  .account-btn:hover{ background:rgba(79,195,247,0.18); }
+  .account-btn .avatar{
+    width:26px; height:26px;
+    border-radius:50%;
+    background:var(--brass);
+    color:var(--pine-deep);
+    display:flex; align-items:center; justify-content:center;
+    flex:none;
+  }
+  .account-btn .acct-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.78rem;
+    font-weight:600;
+  }
+  .account-btn .caret{
+    transition:transform .15s ease;
+    opacity:0.8;
+  }
+  .account-btn.open .caret{ transform:rotate(180deg); }
+
+  .account-dropdown{
+    position:absolute;
+    top:calc(100% + 10px);
+    right:0;
+    background:#eaf8fd;
+    border:1px solid #a8ddf5;
+    box-shadow:0 20px 40px rgba(20,120,170,0.28);
+    width:230px;
+    display:none;
+    overflow:hidden;
+    z-index:60;
+  }
+  .account-dropdown.open{ display:block; }
+  .account-dropdown-item{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    width:100%;
+    background:none;
+    border:none;
+    padding:14px 18px;
+    text-align:left;
+    color:var(--pine-deep);
+    font-family:'Source Serif 4', serif;
+    font-weight:600;
+    font-size:0.98rem;
+    border-bottom:1px solid #a8ddf5;
+    transition:background .13s ease;
+  }
+  .account-dropdown-item:last-child{ border-bottom:none; }
+  .account-dropdown-item:hover{ background:var(--parchment-dim); }
+  .account-dropdown-item svg{ flex:none; color:var(--ink-soft); }
+  .account-dropdown-item .dd-count{
+    margin-left:auto;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem;
+    color:var(--maroon);
+    background:var(--parchment-dim);
+    padding:2px 7px;
+    border-radius:10px;
+  }
+  .account-dropdown-item.signout{
+    color:var(--gone);
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:0.76rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    background:var(--parchment);
+  }
+  .account-dropdown-item.signout svg{ color:var(--gone); }
+
+  /* ---------- Favourites / History list views ---------- */
+  .fav-star-btn{
+    background:none;
+    border:1px solid rgba(255,255,255,0.5);
+    color:var(--parchment);
+    width:34px; height:34px; flex:none;
+    display:flex; align-items:center; justify-content:center;
+    border-radius:2px;
+    transition:background .15s ease, color .15s ease;
+  }
+  .fav-star-btn:hover{ background:rgba(255,255,255,0.14); }
+  .fav-star-btn.active{ color:var(--brass-light); border-color:var(--brass-light); }
+  .history-list{ display:flex; flex-direction:column; gap:2px; max-width:640px; }
+  .history-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px 18px;
+    background:#eaf8fd;
+    border:1px solid #a8ddf5;
+    border-left:4px solid var(--brass);
+    text-align:left;
+    transition:transform .13s ease, border-color .13s ease;
+  }
+  .history-row:hover{ transform:translateX(4px); border-left-color:var(--maroon); }
+  .history-row svg{ flex:none; color:var(--ink-soft); }
+  .history-row .hq{ font-family:'IBM Plex Mono', monospace; font-size:0.9rem; color:var(--ink); }
+  .history-row .htime{ margin-left:auto; font-family:'IBM Plex Mono', monospace; font-size:0.68rem; color:var(--ink-soft); white-space:nowrap; }
+  .clear-history-btn{
+    margin-top:18px;
+    background:none;
+    border:1px solid var(--maroon);
+    color:var(--maroon);
+    padding:9px 18px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .clear-history-btn:hover{ background:var(--maroon); color:#eaf8fd; }
+
+  main{flex:1; width:100%;}
+
+  /* ---------- HOME / HERO ---------- */
+  .hero{
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(79,195,247,0.16), transparent 55%),
+      linear-gradient(180deg, var(--pine) 0%, var(--pine-deep) 100%);
+    color:var(--parchment);
+    min-height:calc(100vh - 66px);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:60px 24px;
+    position:relative;
+    overflow:hidden;
+  }
+  .hero::before{
+    content:"";
+    position:absolute;
+    inset:24px;
+    border:1px solid rgba(143,220,247,0.3);
+    pointer-events:none;
+    z-index:3;
+  }
+  .hero-inner{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    max-width:1160px;
+    width:100%;
+    flex-wrap:wrap;
+    position:relative;
+    z-index:2;
+  }
+  .hero-text{
+    text-align:left;
+    flex:1 1 420px;
+    min-width:280px;
+    max-width:620px;
+  }
+  .hero .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.75rem;
+    letter-spacing:0.22em;
+    text-transform:uppercase;
+    color:var(--brass-light);
+    margin-bottom:22px;
+  }
+  .hero h1{
+    font-size:clamp(2.3rem, 5vw, 4.4rem);
+    line-height:1.02;
+    margin:0 0 20px;
+    max-width:16ch;
+  }
+  .hero h1 em{
+    font-style:italic;
+    font-weight:500;
+    color:var(--brass-light);
+  }
+  .hero p.lede{
+    max-width:46ch;
+    font-size:1.08rem;
+    line-height:1.6;
+    color:var(--parchment-dim);
+    margin:0 0 38px;
+  }
+  .cta{
+    background:var(--brass);
+    color:var(--pine-deep);
+    border:none;
+    padding:15px 34px;
+    font-size:0.95rem;
+    font-weight:600;
+    font-family:'IBM Plex Mono', monospace;
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    transition:transform .18s ease, background .18s ease;
+  }
+  .cta:hover{background:var(--brass-light); transform:translateX(3px);}
+
+  /* ---------- 3D open-book background illusion: pages continuously turning side by side ---------- */
+  .hero-book-bg{
+    position:absolute;
+    inset:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    perspective:1400px;
+    z-index:1;
+    pointer-events:none;
+  }
+  .open-book{
+    position:relative;
+    width:480px;
+    height:320px;
+    transform-style:preserve-3d;
+    transform:rotateX(30deg);
+    opacity:0.45;
+  }
+  .open-book .page-stack{
+    position:absolute;
+    top:0;
+    width:238px;
+    height:320px;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 14px, rgba(20,120,170,0.08) 14px 15px),
+      repeating-linear-gradient(180deg, #cdeafb, #cdeafb 3px, #b9e0f5 4px);
+    border:1px solid rgba(20,120,170,0.22);
+    box-shadow:0 22px 46px rgba(0,0,0,0.25);
+  }
+  .open-book .left-stack{ left:0; border-radius:4px 0 0 4px; box-shadow:0 22px 46px rgba(0,0,0,0.25), 3px 0 0 -1px #a8ddf5, 6px 0 0 -2px #7fd0f2;}
+  .open-book .right-stack{ right:0; border-radius:0 4px 4px 0; box-shadow:0 22px 46px rgba(0,0,0,0.25), -3px 0 0 -1px #a8ddf5, -6px 0 0 -2px #7fd0f2;}
+  .open-book .spine-line{
+    position:absolute;
+    left:50%; top:-6px;
+    width:8px; height:332px;
+    transform:translateX(-50%) translateZ(1px);
+    background:linear-gradient(90deg, transparent, rgba(0,0,0,0.18), transparent);
+  }
+  .open-book .flip-page{
+    position:absolute;
+    top:0; left:50%;
+    width:238px; height:320px;
+    transform-style:preserve-3d;
+    transform-origin:left center;
+    animation:turnPage 5s linear infinite;
+  }
+  .open-book .flip-page.p2{ animation-delay:2.5s; }
+  .open-book .page-face{
+    position:absolute; inset:0;
+    background:
+      repeating-linear-gradient(180deg, transparent 0 14px, rgba(20,120,170,0.08) 14px 15px),
+      linear-gradient(100deg, #eaf8fd, #b9e0f5);
+    border:1px solid rgba(20,120,170,0.22);
+    backface-visibility:hidden;
+    box-shadow:0 14px 30px rgba(0,0,0,0.18);
+    border-radius:0 4px 4px 0;
+  }
+  .open-book .page-back{
+    transform:rotateY(180deg);
+    border-radius:4px 0 0 4px;
+  }
+  @keyframes turnPage{
+    0%{ transform:rotateY(0deg); opacity:1; }
+    44%{ transform:rotateY(-90deg); opacity:1; }
+    88%{ transform:rotateY(-178deg); opacity:1; }
+    91%{ opacity:0; }
+    92%{ transform:rotateY(0deg); opacity:0; }
+    100%{ transform:rotateY(0deg); opacity:1; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .open-book .flip-page{ animation:none !important; opacity:0; }
+  }
+
+  /* ---------- Section shell ---------- */
+  .section{
+    padding:56px 32px 90px;
+    max-width:1160px;
+    margin:0 auto;
+  }
+  .section-head{margin-bottom:38px;}
+  .section-head .kicker{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    letter-spacing:0.16em;
+    text-transform:uppercase;
+    color:var(--maroon);
+    margin-bottom:10px;
+  }
+  .section-head h2{
+    font-size:clamp(1.7rem, 3vw, 2.5rem);
+    margin:0 0 10px;
+  }
+  .section-head p{
+    color:var(--ink-soft);
+    max-width:56ch;
+    line-height:1.55;
+    margin:0;
+  }
+  .back-arrow{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    background:none;
+    border:none;
+    padding:0;
+    margin-bottom:14px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.76rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--maroon);
+    transition:transform .13s ease, opacity .13s ease;
+  }
+  .back-arrow:hover{ transform:translateX(-3px); opacity:0.8; }
+
+  /* ---------- Search bar ---------- */
+  .search-wrap{
+    margin-bottom:38px;
+    position:relative;
+  }
+  .search-box{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:#eaf8fd;
+    border:1px solid #a8ddf5;
+    border-left:5px solid var(--maroon);
+    box-shadow:var(--shadow);
+    padding:6px 18px;
+  }
+  .search-box svg{ flex:none; opacity:0.6; }
+  .search-box input{
+    flex:1;
+    border:none;
+    background:transparent;
+    outline:none;
+    padding:14px 0;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.95rem;
+    color:var(--ink);
+  }
+  .search-box input::placeholder{ color:var(--ink-soft); opacity:0.7; }
+  .search-clear{
+    background:none;
+    border:none;
+    color:var(--ink-soft);
+    font-size:1rem;
+    padding:4px 6px;
+    display:none;
+  }
+  .search-clear.show{ display:inline-flex; }
+  .search-clear:hover{ color:var(--maroon); }
+  .search-results{
+    margin-top:16px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .search-result-card{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    width:100%;
+    background:#eaf8fd;
+    border:1px solid #a8ddf5;
+    border-left:5px solid var(--brass);
+    padding:16px 22px;
+    text-align:left;
+    box-shadow:0 4px 12px rgba(20,120,170,0.05);
+    transition:transform .15s ease, border-color .15s ease;
+  }
+  .search-result-card:hover{ transform:translateX(5px); border-left-color:var(--maroon); }
+  .search-result-card .sr-main{ flex:1 1 auto; min-width:0; }
+  .search-result-card .srloc{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.68rem;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    color:var(--maroon);
+    margin-bottom:6px;
+  }
+  .search-result-card h3{ margin:0 0 4px; font-size:1.05rem; line-height:1.3; }
+  .search-result-card .srauthor{
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    font-style:italic;
+  }
+  .search-result-card .sravail{
+    flex:none;
+    text-align:right;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    white-space:nowrap;
+  }
+  .search-result-card .sravail.yes{ color:var(--avail); }
+  .search-result-card .sravail.no{ color:var(--gone); }
+  .search-empty{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    padding:20px 4px;
+  }
+
+  /* ---------- External (Open Library) results ---------- */
+  .external-section{
+    margin-top:30px;
+    padding-top:26px;
+    border-top:1px dashed #a8ddf5;
+  }
+  .external-heading{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:14px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+  }
+  .external-heading .ol-dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--pine);
+    flex:none;
+  }
+  .external-loading{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.82rem;
+    color:var(--ink-soft);
+    padding:6px 4px 2px;
+  }
+  .external-result-card{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:20px;
+    width:100%;
+    background:#eaf8fd;
+    border:1px solid #a8ddf5;
+    border-left:5px solid var(--pine);
+    padding:14px 22px;
+    text-align:left;
+    box-shadow:0 4px 12px rgba(20,120,170,0.045);
+    transition:transform .15s ease, border-color .15s ease;
+    text-decoration:none;
+    color:inherit;
+  }
+  .external-result-card:hover{ transform:translateX(5px); border-left-color:var(--maroon); }
+  .external-result-card .sr-main{ flex:1 1 auto; min-width:0; }
+  .external-result-card .srloc{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.68rem;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    color:var(--pine);
+    margin-bottom:6px;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .external-result-card h3{ margin:0 0 4px; font-size:1.02rem; line-height:1.3; }
+  .external-result-card .srauthor{
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    font-style:italic;
+  }
+  .external-result-card .ol-link{
+    flex:none;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    color:var(--pine);
+    white-space:nowrap;
+  }
+
+  /* ---------- Live category browsing (Open Library) ---------- */
+  .category-browse{
+    margin-top:34px;
+    padding-top:28px;
+    border-top:1px dashed #a8ddf5;
+  }
+  .category-heading{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:16px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+  }
+  .category-heading .live-dot{
+    width:8px; height:8px; border-radius:50%;
+    background:var(--pine);
+    flex:none;
+    box-shadow:0 0 0 3px rgba(20,120,170,0.14);
+  }
+  .category-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));
+    gap:10px;
+  }
+  .category-tile{
+    background:#eaf8fd;
+    border:1px solid #a8ddf5;
+    border-bottom:3px solid var(--pine);
+    padding:14px 16px;
+    text-align:left;
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:0.92rem;
+    color:var(--ink);
+    transition:transform .13s ease, border-color .13s ease;
+  }
+  .category-tile:hover{ transform:translateY(-3px); border-bottom-color:var(--maroon); }
+
+  /* ---------- Branch drawers ---------- */
+  .drawer-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(250px, 1fr));
+    gap:18px;
+  }
+  .drawer{
+    background:linear-gradient(180deg, #a8ddf5, #b9e0f5);
+    border:1px solid #a8ddf5;
+    border-top:6px solid var(--brass);
+    padding:26px 22px 22px;
+    text-align:left;
+    box-shadow:var(--shadow);
+    transition:transform .16s ease, box-shadow .16s ease;
+    position:relative;
+  }
+  .drawer:hover{transform:translateY(-4px); box-shadow:0 18px 34px rgba(20,120,170,0.2);}
+  .drawer .drawer-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    color:var(--maroon);
+    margin-bottom:10px;
+  }
+  .drawer h3{margin:0 0 10px; font-size:1.3rem;}
+  .drawer p{margin:0 0 18px; color:var(--ink-soft); font-size:0.92rem; line-height:1.5;}
+  .drawer .pull{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--ink);
+    border-top:1px solid #a8ddf5;
+    padding-top:14px;
+    width:100%;
+    justify-content:space-between;
+  }
+  .drawer .handle{
+    width:34px;height:8px;
+    background:var(--brass);
+    border-radius:4px;
+  }
+
+  /* ---------- Subject index cards ---------- */
+  .card-list{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));
+    gap:16px;
+  }
+  .index-card{
+    background:#eaf8fd;
+    border:1px solid #a8ddf5;
+    border-left:5px solid var(--pine);
+    padding:20px 22px;
+    text-align:left;
+    box-shadow:0 6px 16px rgba(20,120,170,0.06);
+    transition:transform .15s ease, border-color .15s ease;
+  }
+  .index-card:hover{transform:translateY(-3px); border-left-color:var(--maroon);}
+  .index-card .num{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+  }
+  .index-card h3{margin:0 0 8px; font-size:1.1rem;}
+  .index-card p{margin:0; color:var(--ink-soft); font-size:0.88rem; line-height:1.5;}
+  .index-card .count{
+    display:block; margin-top:14px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    color:var(--brass);
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+  }
+
+  /* ---------- Bookshelf ---------- */
+  .shelf{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    gap:10px;
+    padding:0 0 18px;
+    border-bottom:10px solid #29a8e0;
+    position:relative;
+  }
+  .shelf::after{
+    content:"";
+    position:absolute;
+    left:0; right:0; bottom:-10px;
+    height:10px;
+    background:linear-gradient(180deg, #1c94cc, #0f6fa3);
+  }
+  .spine{
+    width:64px;
+    border:1px solid rgba(0,0,0,0.08);
+    color:#eaf8fd;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    padding:14px 6px 10px;
+    text-align:center;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.68rem;
+    line-height:1.3;
+    border-radius:2px 2px 0 0;
+    transition:transform .15s ease;
+    writing-mode:vertical-rl;
+    text-orientation:mixed;
+    min-height:230px;
+    box-shadow:inset -6px 0 10px rgba(0,0,0,0.08);
+  }
+  .spine:hover{transform:translateY(-10px);}
+  .spine .spine-title{
+    writing-mode:vertical-rl;
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:0.82rem;
+    letter-spacing:0.01em;
+  }
+  .spine .spine-avail{
+    margin-top:auto;
+    writing-mode:horizontal-tb;
+    font-size:0.62rem;
+    background:rgba(255,255,255,0.18);
+    padding:2px 5px;
+    border-radius:8px;
+  }
+
+  .empty-note{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    margin-top:14px;
+  }
+
+  /* ---------- Modal (index card detail) ---------- */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(15,80,120,0.45);
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    z-index:50;
+  }
+  .overlay.open{display:flex;}
+  .book-card{
+    background:#eaf8fd;
+    width:100%;
+    max-width:560px;
+    max-height:88vh;
+    overflow-y:auto;
+    box-shadow:0 30px 60px rgba(0,0,0,0.25);
+    border:1px solid #a8ddf5;
+    position:relative;
+  }
+  .book-card .bc-top{
+    background:var(--pine-deep);
+    color:var(--parchment);
+    padding:22px 26px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+  }
+  .book-card .bc-top .call{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    color:var(--brass-light);
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .book-card .bc-top h2{margin:0; font-size:1.5rem; line-height:1.15;}
+  .book-card .bc-top .author{font-size:0.9rem; color:var(--parchment-dim); margin-top:6px; font-style:italic;}
+  .close-btn{
+    background:none; border:1px solid rgba(255,255,255,0.45);
+    color:var(--parchment); width:30px; height:30px; flex:none;
+    font-size:1rem; line-height:1;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .close-btn:hover{background:rgba(255,255,255,0.12);}
+  .bc-body{padding:24px 26px 28px;}
+  .bc-meta{
+    display:flex; flex-wrap:wrap; gap:10px 24px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.76rem;
+    color:var(--ink-soft);
+    padding-bottom:18px;
+    border-bottom:1px dashed #a8ddf5;
+    margin-bottom:18px;
+  }
+  .bc-meta b{color:var(--ink); font-weight:600;}
+  .bc-desc{line-height:1.65; color:var(--ink); font-size:0.98rem; margin-bottom:22px;}
+  .stamp{
+    display:inline-flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 16px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.8rem;
+    font-weight:600;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    border:2px solid currentColor;
+    border-radius:3px;
+    transform:rotate(-1.5deg);
+  }
+  .stamp.avail{color:var(--avail); background:var(--avail-bg);}
+  .stamp.gone{color:var(--gone); background:var(--gone-bg);}
+  .reserve-row{
+    margin-top:24px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    flex-wrap:wrap;
+  }
+  .reserve-btn{
+    background:var(--maroon);
+    color:#eaf8fd;
+    border:none;
+    padding:13px 26px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.82rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    font-weight:600;
+  }
+  .reserve-btn:hover{background:#0e86c2;}
+  .reserve-btn:disabled{background:#cdeafb; color:#3f7391; cursor:not-allowed;}
+  .confirm-msg{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.78rem;
+    color:var(--avail);
+  }
+
+  /* ---------- Sign-in modal ---------- */
+  .signin-card{
+    background:#eaf8fd;
+    width:100%;
+    max-width:380px;
+    box-shadow:0 30px 60px rgba(0,0,0,0.25);
+    border:1px solid #a8ddf5;
+    position:relative;
+  }
+  .signin-card .bc-top{
+    background:var(--pine-deep);
+    color:var(--parchment);
+    padding:22px 26px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+  }
+  .signin-card .bc-top .call{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    color:var(--brass-light);
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+  }
+  .signin-card .bc-top h2{margin:0; font-size:1.35rem; line-height:1.15;}
+  .signin-body{padding:26px 26px 30px;}
+  .field{
+    margin-bottom:18px;
+    text-align:left;
+  }
+  .field label{
+    display:block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--ink-soft);
+    margin-bottom:7px;
+  }
+  .field input{
+    width:100%;
+    padding:11px 13px;
+    border:1px solid #a8ddf5;
+    background:var(--parchment);
+    color:var(--ink);
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.88rem;
+    border-radius:2px;
+    outline:none;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .field input:focus{
+    border-color:var(--maroon);
+    background:#eaf8fd;
+  }
+  .signin-submit{
+    width:100%;
+    background:var(--maroon);
+    color:#eaf8fd;
+    border:none;
+    padding:13px 26px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.82rem;
+    text-transform:uppercase;
+    letter-spacing:0.05em;
+    font-weight:600;
+    margin-top:6px;
+  }
+  .signin-submit:hover{background:#0e86c2;}
+  .signin-note{
+    margin-top:16px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    text-align:center;
+  }
+  .signin-confirm{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.82rem;
+    color:var(--avail);
+    text-align:center;
+    padding:8px 0 2px;
+  }
+
+  footer{
+    text-align:center;
+    padding:24px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    border-top:1px solid #a8ddf5;
+  }
+
+  @media (max-width:640px){
+    .topbar{flex-direction:column; align-items:flex-start; gap:8px;}
+    .topbar-right{width:100%; justify-content:space-between;}
+    .hero{min-height:auto; padding:70px 20px;}
+    .hero-text{text-align:center;}
+    .hero p.lede{margin-left:auto; margin-right:auto;}
+    .section{padding:40px 18px 60px;}
+    .open-book{width:300px; height:200px; opacity:0.32;}
+    .open-book .page-stack{width:148px; height:200px;}
+    .open-book .flip-page{width:148px; height:200px;}
+    .open-book .spine-line{height:212px;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand" onclick="goHome()"><span class="mark">BS</span> Book Sphere</div>
+    <div class="topbar-right">
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <div class="account-area" id="accountArea"></div>
+    </div>
+  </div>
+
+  <main id="main"></main>
+
+  <footer>Prototype catalog interface · reservations shown here are simulated for this session</footer>
+</div>
+
+<div class="overlay" id="overlay" onclick="if(event.target===this) closeModal()">
+  <div class="book-card" id="bookCard"></div>
+</div>
+
+<div class="overlay" id="signinOverlay" onclick="if(event.target===this) closeSignIn()">
+  <div class="signin-card" id="signinCard">
+    <div class="bc-top">
+      <div>
+        <div class="call">Member Access</div>
+        <h2>Sign In</h2>
+      </div>
+      <button class="close-btn" onclick="closeSignIn()">✕</button>
+    </div>
+    <div class="signin-body">
+      <form id="signinForm" onsubmit="return handleSignIn(event)">
+        <div class="field">
+          <label for="rollNo">Roll Number</label>
+          <input type="text" id="rollNo" name="rollNo" placeholder="e.g. 21CSE0142" required autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="pw">Password</label>
+          <input type="password" id="pw" name="pw" placeholder="••••••••" required autocomplete="off">
+        </div>
+        <button type="submit" class="signin-submit">Sign In</button>
+      </form>
+      <div id="signinResult"></div>
+      <p class="signin-note">Access is simulated for this prototype — no data leaves this session.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------------- DATA ---------------- */
+const catalog = [
+  {
+    id:'cse', name:'Computer Science & Engineering', short:'CSE',
+    blurb:'Algorithms, systems, and the machinery behind software.',
+    subjects:[
+      { id:'dsa', name:'Data Structures & Algorithms', blurb:'How to organize data and reason about running time.',
+        books:[
+          {title:'Introduction to Algorithms', author:'Thomas H. Cormen, Charles E. Leiserson, Ronald L. Rivest, Clifford Stein', edition:'3rd Edition', call:'005.1 COR', total:6, available:2, desc:'A comprehensive reference covering algorithm design and analysis, from sorting and graph algorithms to NP-completeness, with rigorous proofs throughout.'},
+          {title:'Data Structures Using C', author:'Reema Thareja', edition:'2nd Edition', call:'005.7 THA', total:5, available:5, desc:'An introductory text building up arrays, linked lists, trees, and graphs through C implementations, aimed at undergraduate coursework.'},
+          {title:'Algorithm Design', author:'Jon Kleinberg, Éva Tardos', edition:'1st Edition', call:'005.1 KLE', total:4, available:0, desc:'Presents algorithmic techniques such as greedy methods, divide and conquer, and dynamic programming through worked case studies.'}
+        ]},
+      { id:'os', name:'Operating Systems', blurb:'Processes, memory, and how a machine manages itself.',
+        books:[
+          {title:'Operating System Concepts', author:'Abraham Silberschatz, Peter B. Galvin, Greg Gagne', edition:'10th Edition', call:'005.43 SIL', total:7, available:3, desc:'The standard survey of process scheduling, memory management, file systems, and concurrency in modern operating systems.'},
+          {title:'Modern Operating Systems', author:'Andrew S. Tanenbaum, Herbert Bos', edition:'4th Edition', call:'005.43 TAN', total:5, available:1, desc:'Explores operating system design with detailed case studies of UNIX, Linux, and Windows internals.'},
+          {title:'Operating Systems: Internals and Design Principles', author:'William Stallings', edition:'9th Edition', call:'005.43 STA', total:4, available:4, desc:'Balances theory and practice on scheduling, deadlock, virtual memory, and distributed systems.'}
+        ]},
+      { id:'cn', name:'Computer Networks', blurb:'How data travels from one machine to another.',
+        books:[
+          {title:'Computer Networking: A Top-Down Approach', author:'James F. Kurose, Keith W. Ross', edition:'8th Edition', call:'004.6 KUR', total:6, available:0, desc:'Introduces networking from the application layer downward, using the internet as the running example throughout.'},
+          {title:'Computer Networks', author:'Andrew S. Tanenbaum, David J. Wetherall', edition:'5th Edition', call:'004.6 TAN', total:5, available:2, desc:'A layer-by-layer treatment of network architecture, protocols, and the history of internetworking.'},
+          {title:'Data Communications and Networking', author:'Behrouz A. Forouzan', edition:'5th Edition', call:'004.6 FOR', total:4, available:4, desc:'Covers physical transmission, error control, and routing with an emphasis on clear diagrams and worked examples.'}
+        ]},
+      { id:'dbms', name:'Database Management Systems', blurb:'Storing, querying, and protecting structured data.',
+        books:[
+          {title:'Database System Concepts', author:'Abraham Silberschatz, Henry F. Korth, S. Sudarshan', edition:'7th Edition', call:'005.74 SIL', total:6, available:1, desc:'Covers relational theory, SQL, transaction processing, and storage internals in a widely used course text.'},
+          {title:'Fundamentals of Database Systems', author:'Ramez Elmasri, Shamkant B. Navathe', edition:'7th Edition', call:'005.74 ELM', total:5, available:5, desc:'Builds from ER modeling through normalization, indexing, and query optimization with applied examples.'},
+          {title:'An Introduction to Database Systems', author:'C. J. Date', edition:'8th Edition', call:'005.74 DAT', total:3, available:0, desc:'A theory-first treatment of the relational model, favored for its precision on database foundations.'}
+        ]}
+    ]
+  },
+  {
+    id:'ece', name:'Electronics & Communication Engineering', short:'ECE',
+    blurb:'Circuits, signals, and the systems that carry information.',
+    subjects:[
+      { id:'de', name:'Digital Electronics', blurb:'Logic gates, circuits, and digital system design.',
+        books:[
+          {title:'Digital Design', author:'M. Morris Mano, Michael D. Ciletti', edition:'6th Edition', call:'621.395 MAN', total:6, available:2, desc:'A foundational text on combinational and sequential logic design, with coverage of Verilog HDL.'},
+          {title:'Digital Logic and Computer Design', author:'M. Morris Mano', edition:'1st Edition', call:'621.395 MAN2', total:5, available:5, desc:'Connects Boolean algebra and logic minimization to the design of digital computer components.'},
+          {title:'Digital Fundamentals', author:'Thomas L. Floyd', edition:'11th Edition', call:'621.395 FLO', total:4, available:0, desc:'An accessible introduction to number systems, logic families, and programmable logic devices.'}
+        ]},
+      { id:'ss', name:'Signals & Systems', blurb:'Transforming and analyzing continuous and discrete signals.',
+        books:[
+          {title:'Signals and Systems', author:'Alan V. Oppenheim, Alan S. Willsky', edition:'2nd Edition', call:'621.3822 OPP', total:5, available:1, desc:'Develops Fourier and Laplace analysis for continuous and discrete-time signals with rigorous derivations.'},
+          {title:'Signals and Systems', author:'Simon Haykin, Barry Van Veen', edition:'2nd Edition', call:'621.3822 HAY', total:4, available:4, desc:'Pairs mathematical treatment of transforms with applied examples in communication and control systems.'},
+          {title:'Signals & Systems', author:'A. Nagoor Kani', edition:'3rd Edition', call:'621.3822 NAG', total:3, available:0, desc:'A problem-solving oriented text popular for exam preparation, with step-by-step solved examples.'}
+        ]},
+      { id:'mp', name:'Microprocessors & Microcontrollers', blurb:'The chips that execute instructions inside every device.',
+        books:[
+          {title:'Microprocessor Architecture, Programming and Applications with the 8085', author:'Ramesh S. Gaonkar', edition:'5th Edition', call:'004.165 GAO', total:5, available:3, desc:'A hands-on guide to 8085 assembly programming, interfacing, and hardware architecture.'},
+          {title:'The 8051 Microcontroller', author:'Kenneth J. Ayala', edition:'3rd Edition', call:'004.165 AYA', total:4, available:0, desc:'Covers 8051 architecture, instruction sets, and embedded programming for real-time applications.'},
+          {title:'Microprocessors and Interfacing', author:'Douglas V. Hall', edition:'2nd Edition', call:'004.165 HAL', total:4, available:2, desc:'Explains processor interfacing with memory and I/O devices through practical circuit examples.'}
+        ]},
+      { id:'cs', name:'Communication Systems', blurb:'Modulation, transmission, and the physics of getting a message across.',
+        books:[
+          {title:'Communication Systems', author:'Simon Haykin', edition:'5th Edition', call:'621.382 HAY', total:5, available:2, desc:'A thorough treatment of analog and digital modulation techniques and noise performance analysis.'},
+          {title:'Principles of Communication Systems', author:'Herbert Taub, Donald L. Schilling', edition:'3rd Edition', call:'621.382 TAU', total:4, available:4, desc:'Introduces AM, FM, and pulse modulation with an emphasis on circuit-level intuition.'},
+          {title:'Digital Communications', author:'John G. Proakis, Masoud Salehi', edition:'5th Edition', call:'621.382 PRO', total:3, available:0, desc:'A rigorous graduate-level text on channel coding, detection theory, and digital transmission.'}
+        ]}
+    ]
+  },
+  {
+    id:'me', name:'Mechanical Engineering', short:'ME',
+    blurb:'Energy, motion, and the machines that shape the physical world.',
+    subjects:[
+      { id:'thermo', name:'Thermodynamics', blurb:'Heat, work, and the laws that govern energy conversion.',
+        books:[
+          {title:'Engineering Thermodynamics', author:'P. K. Nag', edition:'6th Edition', call:'621.402 NAG', total:6, available:3, desc:'A widely used undergraduate text covering the laws of thermodynamics, cycles, and applications.'},
+          {title:'Fundamentals of Engineering Thermodynamics', author:'Michael J. Moran, Howard N. Shapiro', edition:'8th Edition', call:'621.402 MOR', total:5, available:0, desc:'Builds thermodynamic reasoning through worked engineering problems in power and refrigeration cycles.'},
+          {title:'Thermodynamics: An Engineering Approach', author:'Yunus A. Cengel, Michael A. Boles', edition:'8th Edition', call:'621.402 CEN', total:4, available:4, desc:'Known for intuitive explanations and extensive real-world example problems across energy systems.'}
+        ]},
+      { id:'fm', name:'Fluid Mechanics', blurb:'How liquids and gases move, and the forces behind it.',
+        books:[
+          {title:'Fluid Mechanics and Hydraulic Machines', author:'R. K. Bansal', edition:'9th Edition', call:'620.106 BAN', total:5, available:1, desc:'Covers fluid statics, dynamics, and hydraulic machinery with extensive numerical examples.'},
+          {title:'Fluid Mechanics', author:'Frank M. White', edition:'8th Edition', call:'620.106 WHI', total:4, available:4, desc:'A rigorous treatment of viscous flow, boundary layers, and dimensional analysis for engineers.'},
+          {title:'Introduction to Fluid Mechanics', author:'Robert W. Fox, Philip J. Pritchard, Alan T. McDonald', edition:'9th Edition', call:'620.106 FOX', total:3, available:0, desc:'Emphasizes problem-solving methodology through control volume analysis and applied case studies.'}
+        ]},
+      { id:'md', name:'Machine Design', blurb:'Sizing, materials, and the logic of mechanical components.',
+        books:[
+          {title:'Design of Machine Elements', author:'V. B. Bhandari', edition:'4th Edition', call:'621.815 BHA', total:5, available:2, desc:'A practical guide to designing shafts, gears, bearings, and fasteners against failure criteria.'},
+          {title:'Mechanical Engineering Design', author:'Joseph E. Shigley, Richard G. Budynas', edition:'10th Edition', call:'621.815 SHI', total:4, available:0, desc:'A rigorous reference on stress analysis, fatigue, and design of mechanical components.'},
+          {title:'Machine Design', author:'R. S. Khurmi, J. K. Gupta', edition:'14th Edition', call:'621.815 KHU', total:6, available:6, desc:'A comprehensive design handbook widely used for its extensive standard formulas and tables.'}
+        ]},
+      { id:'mfg', name:'Manufacturing Processes', blurb:'Turning raw material into finished parts.',
+        books:[
+          {title:'Manufacturing Technology', author:'P. N. Rao', edition:'3rd Edition', call:'670.42 RAO', total:5, available:3, desc:'Covers casting, welding, forming, and machining processes with process-selection guidance.'},
+          {title:'Manufacturing Engineering and Technology', author:'Serope Kalpakjian, Steven R. Schmid', edition:'7th Edition', call:'670.42 KAL', total:4, available:0, desc:'An extensive reference on materials behavior and modern manufacturing systems, including automation.'},
+          {title:'Production Technology', author:'R. K. Jain', edition:'17th Edition', call:'670.42 JAI', total:3, available:1, desc:'A widely referenced text on machine tools, metrology, and manufacturing process planning.'}
+        ]}
+    ]
+  },
+  {
+    id:'ce', name:'Civil Engineering', short:'CE',
+    blurb:'Structures, soil, and the built environment.',
+    subjects:[
+      { id:'sa', name:'Structural Analysis', blurb:'How buildings and bridges carry and distribute load.',
+        books:[
+          {title:'Structural Analysis', author:'R. C. Hibbeler', edition:'10th Edition', call:'624.171 HIB', total:6, available:2, desc:'A methodical treatment of determinate and indeterminate structures using classical and matrix methods.'},
+          {title:'Basic Structural Analysis', author:'C. S. Reddy', edition:'2nd Edition', call:'624.171 RED', total:4, available:0, desc:'Introduces force and displacement methods with numerous solved problems for undergraduate study.'},
+          {title:'Theory of Structures', author:'S. Ramamrutham', edition:'1st Edition', call:'624.171 RAM', total:5, available:5, desc:'A long-standing reference on beams, trusses, and arches, favored for exam preparation.'}
+        ]},
+      { id:'geo', name:'Geotechnical Engineering', blurb:'The mechanics of soil beneath every foundation.',
+        books:[
+          {title:'Basic and Applied Soil Mechanics', author:'Gopal Ranjan, A. S. R. Rao', edition:'2nd Edition', call:'624.151 RAN', total:5, available:1, desc:'Covers soil classification, consolidation, and shear strength with Indian design code references.'},
+          {title:'Geotechnical Engineering', author:'C. Venkatramaiah', edition:'3rd Edition', call:'624.151 VEN', total:4, available:4, desc:'A detailed treatment of soil properties, site investigation, and foundation behavior.'},
+          {title:'Principles of Geotechnical Engineering', author:'Braja M. Das, Khaled Sobhan', edition:'9th Edition', call:'624.151 DAS', total:3, available:0, desc:'A globally used reference blending soil mechanics theory with foundation engineering practice.'}
+        ]},
+      { id:'sur', name:'Surveying', blurb:'Measuring and mapping the land before anything is built.',
+        books:[
+          {title:'Surveying, Volume 1–3', author:'B. C. Punmia, Ashok K. Jain, Arun K. Jain', edition:'16th Edition', call:'526.9 PUN', total:6, available:3, desc:'A three-volume reference spanning chain surveying, leveling, and modern instruments like total stations.'},
+          {title:'Elementary Surveying', author:'Charles D. Ghilani, Paul R. Wolf', edition:'14th Edition', call:'526.9 GHI', total:4, available:0, desc:'Introduces measurement theory, GPS surveying, and geographic information systems.'},
+          {title:'Surveying and Levelling', author:'N. N. Basak', edition:'2nd Edition', call:'526.9 BAS', total:3, available:3, desc:'A practical introduction to leveling, theodolites, and computation of areas and volumes.'}
+        ]},
+      { id:'ct', name:'Concrete Technology', blurb:'The material science behind the most-used building material.',
+        books:[
+          {title:'Concrete Technology', author:'M. S. Shetty', edition:'8th Edition', call:'620.136 SHE', total:5, available:2, desc:'Covers concrete constituents, mix design, and durability, widely used across Indian universities.'},
+          {title:'Properties of Concrete', author:'A. M. Neville', edition:'5th Edition', call:'620.136 NEV', total:4, available:0, desc:'A definitive reference on concrete behavior, curing, and long-term performance.'},
+          {title:'Concrete Technology', author:'A. R. Santhakumar', edition:'2nd Edition', call:'620.136 SAN', total:3, available:1, desc:'Balances materials science with practical guidance on mix design and quality control.'}
+        ]}
+    ]
+  },
+  {
+    id:'nursing', name:'Nursing & Health Sciences', short:'NUR',
+    blurb:'Patient care, the human body, and the science of healing.',
+    subjects:[
+      { id:'fon', name:'Fundamentals of Nursing', blurb:'Core nursing skills, procedures, and patient care principles.',
+        books:[
+          {title:'Fundamentals of Nursing', author:'Patricia A. Potter, Anne Griffin Perry', edition:'10th Edition', call:'610.73 POT', total:6, available:2, desc:'A widely used foundation text covering basic nursing skills, patient assessment, and clinical procedures.'},
+          {title:'Fundamentals of Nursing: Concepts, Process and Practice', author:'Barbara Kozier, Glenora Erb', edition:'9th Edition', call:'610.73 KOZ', total:5, available:5, desc:'Introduces the nursing process, critical thinking, and core competencies for beginning nursing students.'},
+          {title:'Textbook of Fundamentals of Nursing', author:'B. T. Basavanthappa', edition:'2nd Edition', call:'610.73 BAS', total:4, available:0, desc:'A comprehensive Indian nursing curriculum text covering basic nursing procedures and patient care ethics.'}
+        ]},
+      { id:'anp', name:'Anatomy & Physiology', blurb:'How the human body is built, and how it functions.',
+        books:[
+          {title:'Ross and Wilson Anatomy and Physiology in Health and Illness', author:'Anne Waugh, Allison Grant', edition:'13th Edition', call:'612 WAU', total:6, available:3, desc:'A clearly illustrated guide to body systems, written specifically for nursing and allied health students.'},
+          {title:'Principles of Anatomy and Physiology', author:'Gerard J. Tortora, Bryan H. Derrickson', edition:'15th Edition', call:'612 TOR', total:5, available:1, desc:'A detailed reference on human anatomy and physiological processes, widely used across health science programs.'},
+          {title:'Essentials of Medical Physiology', author:'K. Sembulingam, Prema Sembulingam', edition:'8th Edition', call:'612 SEM', total:4, available:4, desc:'Explains physiological concepts through concise explanations and clinical correlations for exam preparation.'}
+        ]},
+      { id:'pharm', name:'Pharmacology for Nurses', blurb:'How drugs work, and how to administer them safely.',
+        books:[
+          {title:'Lippincott Illustrated Reviews: Pharmacology', author:'Karen Whalen', edition:'7th Edition', call:'615.1 WHA', total:5, available:0, desc:'A visually driven review of drug classes, mechanisms of action, and clinical pharmacology basics.'},
+          {title:'Essentials of Medical Pharmacology', author:'K. D. Tripathi', edition:'8th Edition', call:'615.1 TRI', total:6, available:2, desc:'A widely referenced pharmacology text balancing drug mechanisms with practical prescribing guidance.'},
+          {title:'Pharmacology for Nurses: A Pathophysiologic Approach', author:'Michael Patrick Adams, Leland Norman Holland', edition:'6th Edition', call:'615.1 ADA', total:4, available:4, desc:'Connects drug therapy to disease processes, aimed specifically at nursing practice and patient safety.'}
+        ]},
+      { id:'msn', name:'Medical-Surgical Nursing', blurb:'Caring for adult patients through illness, surgery, and recovery.',
+        books:[
+          {title:"Brunner & Suddarth's Textbook of Medical-Surgical Nursing", author:'Janice L. Hinkle, Kerry H. Cheever', edition:'14th Edition', call:'610.73 HIN', total:6, available:1, desc:'A comprehensive reference on adult health nursing across body systems and clinical conditions.'},
+          {title:"Lewis's Medical-Surgical Nursing", author:'Mariann M. Harding, Jeffrey Kwong', edition:'11th Edition', call:'610.73 HAR', total:5, available:5, desc:'Covers assessment and management of adult patients with an emphasis on clinical reasoning.'},
+          {title:'Textbook of Medical-Surgical Nursing', author:'Suzanne C. Smeltzer', edition:'12th Edition', call:'610.73 SME', total:3, available:0, desc:'A detailed nursing-focused guide to perioperative care, chronic illness, and emergency management.'}
+        ]}
+    ]
+  }
+];
+
+/* ---------------- STATE ---------------- */
+let state = { view:'home', branchId:null, subjectId:null };
+const spineColors = ['#29a8e0','#0e86c2','#4fc3f7','#0f7bb3','#7fd0f2','#1c94cc'];
+
+let account = {
+  signedIn:false,
+  name:'',
+  menuOpen:false,
+  favourites:[],     // { branchId, subjectId, index, title, author }
+  searchHistory:[]   // { query, time }
+};
+
+/* Reservation auto-expiry: if a reserved copy isn't picked up within this
+   window, it automatically returns to available stock for other users. */
+const RESERVATION_HOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+let activeReservations = []; // { branchId, subjectId, index, expiresAt, timeoutId } or dynamic equivalent
+
+/* ---------------- LIVE SUBJECT BROWSING (Open Library) ----------------
+   Instead of hand-typing book lists per subject, these tiles pull real,
+   current book data straight from Open Library's public Subjects API
+   (https://openlibrary.org/subjects/{slug}.json) — no API key needed, and
+   it covers effectively any discipline, not just the ones in our small
+   local catalog above. */
+const dynamicCategories = [
+  { slug:'engineering',       label:'Engineering' },
+  { slug:'computer_science',  label:'Computer Science' },
+  { slug:'statistics',        label:'Statistics' },
+  { slug:'nursing',           label:'Nursing' },
+  { slug:'architecture',      label:'Architecture' },
+  { slug:'mathematics',       label:'Mathematics' },
+  { slug:'medicine',          label:'Medicine' },
+  { slug:'business',          label:'Business' },
+  { slug:'physics',           label:'Physics' },
+  { slug:'chemistry',         label:'Chemistry' },
+  { slug:'psychology',        label:'Psychology' },
+  { slug:'law',                label:'Law' },
+  { slug:'economics',         label:'Economics' },
+  { slug:'literature',        label:'Literature' }
+];
+const categoryCache = {};      // slug -> array of Open Library "works"
+const dynamicStockStore = {};  // "slug::key" -> { total, available } (generated once, then mutated by reserve/expire)
+
+function findBranch(id){ return catalog.find(b=>b.id===id); }
+function findSubject(branch, id){ return branch.subjects.find(s=>s.id===id); }
+
+/* ---------------- NAV ---------------- */
+function goHome(){ state = {view:'home', branchId:null, subjectId:null}; render(); }
+function goBranches(){ state.view='branches'; state.branchId=null; state.subjectId=null; render(); }
+function chooseBranch(id){ state.view='subjects'; state.branchId=id; state.subjectId=null; render(); }
+function chooseSubject(id){ state.view='books'; state.subjectId=id; render(); }
+function chooseCategory(slug){ state.view='category'; state.branchId=null; state.subjectId=null; state.categorySlug=slug; render(); }
+
+function renderBreadcrumb(){
+  const bc = document.getElementById('breadcrumb');
+  let parts = [`<span onclick="goHome()">Home</span>`];
+
+  if(state.view==='favourites' || state.view==='history'){
+    parts.push(`<span class="sep">/</span>`);
+    parts.push(`<span class="current">${state.view==='favourites' ? 'Favourites' : 'Search History'}</span>`);
+    bc.innerHTML = parts.join('');
+    return;
+  }
+
+  if(state.view==='category'){
+    const cat = dynamicCategories.find(c=>c.slug===state.categorySlug);
+    parts.push(`<span class="sep">/</span>`);
+    parts.push(`<span onclick="goBranches()">Browse</span>`);
+    parts.push(`<span class="sep">/</span>`);
+    parts.push(`<span class="current">${cat ? cat.label : 'Category'}</span>`);
+    bc.innerHTML = parts.join('');
+    return;
+  }
+
+  if(state.view!=='home'){
+    parts.push(`<span class="sep">/</span>`);
+    parts.push(state.view==='branches' ? `<span class="current">Branches</span>` : `<span onclick="goBranches()">Branches</span>`);
+  }
+  if(state.branchId){
+    const b = findBranch(state.branchId);
+    parts.push(`<span class="sep">/</span>`);
+    parts.push(state.view==='subjects' ? `<span class="current">${b.short}</span>` : `<span onclick="chooseBranch('${b.id}')">${b.short}</span>`);
+  }
+  if(state.subjectId){
+    const b = findBranch(state.branchId);
+    const s = findSubject(b, state.subjectId);
+    parts.push(`<span class="sep">/</span><span class="current">${s.name}</span>`);
+  }
+  bc.innerHTML = parts.join('');
+}
+
+/* ---------------- RENDER ---------------- */
+function render(){
+  renderBreadcrumb();
+  renderAccountArea();
+  const main = document.getElementById('main');
+  if(state.view==='home') main.innerHTML = renderHome();
+  else if(state.view==='branches') main.innerHTML = renderBranches();
+  else if(state.view==='subjects') main.innerHTML = renderSubjects();
+  else if(state.view==='books') main.innerHTML = renderBooks();
+  else if(state.view==='favourites') main.innerHTML = renderFavourites();
+  else if(state.view==='history') main.innerHTML = renderHistory();
+  else if(state.view==='category'){ main.innerHTML = renderCategoryPage(state.categorySlug); loadCategory(state.categorySlug); }
+  window.scrollTo({top:0, behavior:'instant'});
+}
+
+/* ---------------- ACCOUNT NAV LINKS ---------------- */
+function renderAccountArea(){
+  const el = document.getElementById('accountArea');
+  if(!el) return;
+  if(!account.signedIn){
+    el.innerHTML = `<button class="signin-btn" onclick="openSignIn()">Sign In</button>`;
+    return;
+  }
+  el.innerHTML = `
+    <button class="account-btn ${account.menuOpen?'open':''}" onclick="toggleAccountMenu(event)">
+      <span class="avatar">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="8" r="4"></circle><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7"></path></svg>
+      </span>
+      <span class="acct-label">My ${account.name || 'Account'}</span>
+      <svg class="caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+    </button>
+    <div class="account-dropdown ${account.menuOpen?'open':''}" id="accountDropdown">
+      <button class="account-dropdown-item" onclick="openFavouritesView()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.8H20l-4.9 3.6 1.9 5.8L12 13.6 6.9 17.2l1.9-5.8L4 7.8h6.1z"></path></svg>
+        Favourites
+        ${account.favourites.length ? `<span class="dd-count">${account.favourites.length}</span>` : ''}
+      </button>
+      <button class="account-dropdown-item" onclick="openSearchHistoryView()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 16 14"></polyline></svg>
+        Search History
+        ${account.searchHistory.length ? `<span class="dd-count">${account.searchHistory.length}</span>` : ''}
+      </button>
+      <button class="account-dropdown-item signout" onclick="signOut()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+        Sign Out
+      </button>
+    </div>
+  `;
+}
+
+function toggleAccountMenu(e){
+  if(e) e.stopPropagation();
+  account.menuOpen = !account.menuOpen;
+  renderAccountArea();
+}
+
+function closeAccountMenu(){
+  if(account.menuOpen){ account.menuOpen = false; renderAccountArea(); }
+}
+
+document.addEventListener('click', (e)=>{
+  const area = document.getElementById('accountArea');
+  if(account.menuOpen && area && !area.contains(e.target)) closeAccountMenu();
+});
+
+function signOut(){
+  account.signedIn = false;
+  account.name = '';
+  account.menuOpen = false;
+  goHome();
+}
+
+function openFavouritesView(){
+  account.menuOpen = false;
+  state.view = 'favourites'; state.branchId=null; state.subjectId=null;
+  render();
+}
+
+function openSearchHistoryView(){
+  account.menuOpen = false;
+  state.view = 'history'; state.branchId=null; state.subjectId=null;
+  render();
+}
+
+function renderFavourites(){
+  if(account.favourites.length === 0){
+    return `
+    <div class="section">
+      <div class="section-head">
+        <div class="kicker">My Account</div>
+        <h2>Favourites</h2>
+        <p>Books you star from their detail card will be saved here for quick access.</p>
+      </div>
+      <p class="empty-note">You haven't favourited any books yet. Open a book and tap the star to save it.</p>
+    </div>`;
+  }
+  return `
+  <div class="section">
+    <div class="section-head">
+      <div class="kicker">My Account</div>
+      <h2>Favourites</h2>
+      <p>${account.favourites.length} book${account.favourites.length===1?'':'s'} you've saved for later.</p>
+    </div>
+    <div class="search-results">
+      ${account.favourites.map(f=>{
+        if(f.type==='dynamic'){
+          const stock = getDynamicStock(f.slug, f.key);
+          const isAvail = stock.available > 0;
+          return `
+          <button class="search-result-card" onclick="openDynamicBook('${f.slug}','${f.key}')">
+            <div class="sr-main">
+              <div class="srloc">Open Library</div>
+              <h3>${f.title}</h3>
+              <div class="srauthor">${f.author}</div>
+            </div>
+            <span class="sravail ${isAvail?'yes':'no'}">${isAvail ? `${stock.available} of ${stock.total} available` : 'All copies checked out'}</span>
+          </button>`;
+        }
+        const branch = findBranch(f.branchId);
+        const subject = branch ? findSubject(branch, f.subjectId) : null;
+        const bk = subject ? subject.books[f.index] : null;
+        if(!bk) return '';
+        const isAvail = bk.available > 0;
+        return `
+        <button class="search-result-card" onclick="openBook('${f.branchId}','${f.subjectId}',${f.index})">
+          <div class="sr-main">
+            <div class="srloc">${branch.short} · ${subject.name}</div>
+            <h3>${bk.title}</h3>
+            <div class="srauthor">${bk.author}</div>
+          </div>
+          <span class="sravail ${isAvail?'yes':'no'}">${isAvail ? `${bk.available} of ${bk.total} available` : 'All copies checked out'}</span>
+        </button>`;
+      }).join('')}
+    </div>
+  </div>`;
+}
+
+function renderHistory(){
+  if(account.searchHistory.length === 0){
+    return `
+    <div class="section">
+      <div class="section-head">
+        <div class="kicker">My Account</div>
+        <h2>Search History</h2>
+        <p>Searches you run from the catalog search bar will show up here.</p>
+      </div>
+      <p class="empty-note">No searches yet. Try searching for a book from the Branches page.</p>
+    </div>`;
+  }
+  return `
+  <div class="section">
+    <div class="section-head">
+      <div class="kicker">My Account</div>
+      <h2>Search History</h2>
+      <p>Your most recent searches, newest first. Tap one to run it again.</p>
+    </div>
+    <div class="history-list">
+      ${account.searchHistory.map(h=>`
+        <button class="history-row" onclick="rerunSearch('${h.query.replace(/'/g,"\\'")}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 16 14"></polyline></svg>
+          <span class="hq">${h.query}</span>
+          <span class="htime">${h.time}</span>
+        </button>
+      `).join('')}
+    </div>
+    <button class="clear-history-btn" onclick="clearSearchHistory()">Clear history</button>
+  </div>`;
+}
+
+function rerunSearch(query){
+  state.view='branches'; state.branchId=null; state.subjectId=null;
+  render();
+  setTimeout(()=>{
+    const input = document.getElementById('bookSearchInput');
+    if(input){
+      input.value = query;
+      handleBookSearch(query);
+    }
+  }, 0);
+}
+
+function clearSearchHistory(){
+  account.searchHistory = [];
+  render();
+}
+
+function recordSearch(query){
+  const q = query.trim();
+  if(!q) return;
+  account.searchHistory = account.searchHistory.filter(h=>h.query.toLowerCase() !== q.toLowerCase());
+  account.searchHistory.unshift({ query:q, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
+  account.searchHistory = account.searchHistory.slice(0, 15);
+}
+
+function isFavourited(branchId, subjectId, index){
+  return account.favourites.some(f=>f.type==='local' && f.branchId===branchId && f.subjectId===subjectId && f.index===index);
+}
+
+function toggleFavourite(branchId, subjectId, index){
+  if(!account.signedIn){
+    closeModal();
+    openSignIn();
+    return;
+  }
+  const existingIdx = account.favourites.findIndex(f=>f.type==='local' && f.branchId===branchId && f.subjectId===subjectId && f.index===index);
+  if(existingIdx > -1){
+    account.favourites.splice(existingIdx, 1);
+  } else {
+    account.favourites.push({ type:'local', branchId, subjectId, index });
+  }
+  const branch = findBranch(branchId);
+  const subject = findSubject(branch, subjectId);
+  renderBookCard(subject.books[index]);
+}
+
+function isFavouritedDynamic(slug, key){
+  return account.favourites.some(f=>f.type==='dynamic' && f.slug===slug && f.key===key);
+}
+
+function toggleFavouriteDynamic(slug, key){
+  if(!account.signedIn){
+    closeModal();
+    openSignIn();
+    return;
+  }
+  const existingIdx = account.favourites.findIndex(f=>f.type==='dynamic' && f.slug===slug && f.key===key);
+  if(existingIdx > -1){
+    account.favourites.splice(existingIdx, 1);
+  } else {
+    const works = categoryCache[slug] || [];
+    const w = works.find(x=>x.key===key);
+    const author = (w && w.authors && w.authors.length) ? w.authors.map(a=>a.name).join(', ') : 'Unknown author';
+    account.favourites.push({ type:'dynamic', slug, key, title: w ? w.title : 'Untitled', author });
+  }
+  openDynamicBook(slug, key);
+}
+
+function renderHome(){
+  return `
+  <div class="hero">
+    <div class="hero-book-bg" aria-hidden="true">
+      <div class="open-book">
+        <div class="page-stack left-stack"></div>
+        <div class="page-stack right-stack"></div>
+        <div class="spine-line"></div>
+        <div class="flip-page p1">
+          <div class="page-face page-front"></div>
+          <div class="page-face page-back"></div>
+        </div>
+        <div class="flip-page p2">
+          <div class="page-face page-front"></div>
+          <div class="page-face page-back"></div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-inner">
+      <div class="hero-text">
+        <div class="eyebrow">University Library · Est. Catalog</div>
+        <h1>Find your next <em>textbook</em>,<br>branch by branch.</h1>
+        <p class="lede">Browse the collection the way the shelves are organized — pick your department, then your subject, then reserve a copy on the spot.</p>
+        <button class="cta" onclick="goBranches()">Enter the Catalog →</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderBranches(){
+  return `
+  <div class="section">
+    <div class="section-head">
+      <button class="back-arrow" onclick="goHome()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        Back
+      </button>
+      <h2>Which branch are you visiting today?</h2>
+      <p>Search for a book by title or author below.</p>
+    </div>
+
+    <div class="search-wrap">
+      <div class="search-box">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="bookSearchInput" placeholder="Search for a book by title or author…" autocomplete="off" oninput="handleBookSearch(this.value)" onkeydown="if(event.key==='Enter'){ recordSearch(this.value); renderAccountArea(); }">
+        <button class="search-clear" id="searchClearBtn" onclick="clearBookSearch()">✕</button>
+      </div>
+      <div class="search-results" id="searchResults"></div>
+      <div id="externalResults"></div>
+    </div>
+
+    <div class="category-browse">
+      <div class="category-heading"><span class="live-dot"></span>Or browse an entire subject</div>
+      <div class="category-grid">
+        ${dynamicCategories.map(c=>`
+          <button class="category-tile" onclick="chooseCategory('${c.slug}')">${c.label}</button>
+        `).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ---------------- BOOK SEARCH ---------------- */
+function searchBooksByName(query){
+  const q = query.trim().toLowerCase();
+  if(!q) return [];
+  const results = [];
+  catalog.forEach(branch=>{
+    branch.subjects.forEach(subject=>{
+      subject.books.forEach((book, index)=>{
+        if(book.title.toLowerCase().includes(q) || book.author.toLowerCase().includes(q)){
+          results.push({ branch, subject, book, index });
+        }
+      });
+    });
+  });
+  return results;
+}
+
+let externalSearchDebounce = null;
+let externalSearchAbort = null;
+let externalSearchToken = 0;
+
+function handleBookSearch(query){
+  const resultsEl = document.getElementById('searchResults');
+  const externalEl = document.getElementById('externalResults');
+  const clearBtn = document.getElementById('searchClearBtn');
+  const drawerGrid = document.getElementById('branchDrawerGrid');
+  const q = query.trim();
+
+  clearBtn.classList.toggle('show', q.length > 0);
+
+  if(!q){
+    resultsEl.innerHTML = '';
+    if(externalEl) externalEl.innerHTML = '';
+    if(drawerGrid) drawerGrid.style.display = '';
+    if(externalSearchDebounce) clearTimeout(externalSearchDebounce);
+    if(externalSearchAbort) externalSearchAbort.abort();
+    return;
+  }
+
+  // Hide branch drawers while actively searching, since the user just wants book results.
+  if(drawerGrid) drawerGrid.style.display = 'none';
+
+  const matches = searchBooksByName(q);
+
+  resultsEl.innerHTML = matches.length === 0
+    ? `<div class="search-empty">No books in our physical catalog match "${q}".</div>`
+    : matches.map(m=>{
+        const isAvail = m.book.available > 0;
+        return `
+          <button class="search-result-card" onclick="openBook('${m.branch.id}','${m.subject.id}',${m.index})">
+            <div class="sr-main">
+              <div class="srloc">${m.branch.short} · ${m.subject.name}</div>
+              <h3>${m.book.title}</h3>
+              <div class="srauthor">${m.book.author}</div>
+            </div>
+            <span class="sravail ${isAvail ? 'yes':'no'}">${isAvail ? `${m.book.available} of ${m.book.total} available` : 'All copies checked out'}</span>
+          </button>
+        `;
+      }).join('');
+
+  // Debounce the external lookup so we don't fire a request on every keystroke.
+  if(externalSearchDebounce) clearTimeout(externalSearchDebounce);
+  if(externalEl) externalEl.innerHTML = `<div class="external-loading">Searching the wider Open Library catalog…</div>`;
+  externalSearchDebounce = setTimeout(()=>{ fetchOpenLibraryResults(q); }, 400);
+}
+
+/* Looks up a much larger real-world book catalog (Open Library) for anything
+   that isn't in our small local/physical catalog above — e.g. nursing,
+   medicine, or any subject we don't currently stock. No API key needed. */
+async function fetchOpenLibraryResults(query){
+  const externalEl = document.getElementById('externalResults');
+  if(!externalEl) return;
+
+  if(externalSearchAbort) externalSearchAbort.abort();
+  externalSearchAbort = new AbortController();
+  const myToken = ++externalSearchToken;
+
+  try{
+    const url = `https://openlibrary.org/search.json?q=${encodeURIComponent(query)}&fields=title,author_name,first_publish_year,key,edition_count&limit=12`;
+    const res = await fetch(url, { signal: externalSearchAbort.signal });
+    if(!res.ok) throw new Error('Open Library request failed');
+    const data = await res.json();
+
+    // Ignore stale responses if the user kept typing.
+    if(myToken !== externalSearchToken) return;
+
+    renderExternalResults(data.docs || [], query);
+  } catch(err){
+    if(err.name === 'AbortError') return;
+    if(myToken !== externalSearchToken) return;
+    externalEl.innerHTML = `<div class="external-section"><div class="external-loading">Couldn't reach Open Library right now — check your connection and try again.</div></div>`;
+  }
+}
+
+function renderExternalResults(docs, query){
+  const externalEl = document.getElementById('externalResults');
+  if(!externalEl) return;
+
+  if(docs.length === 0){
+    externalEl.innerHTML = `
+      <div class="external-section">
+        <div class="external-heading"><span class="ol-dot"></span>From Open Library</div>
+        <div class="external-loading">No matches found on Open Library for "${query}" either.</div>
+      </div>`;
+    return;
+  }
+
+  externalEl.innerHTML = `
+    <div class="external-section">
+      <div class="external-heading"><span class="ol-dot"></span>More from Open Library (${docs.length})</div>
+      <div class="search-results">
+        ${docs.map(d=>{
+          const author = (d.author_name && d.author_name.length) ? d.author_name.join(', ') : 'Unknown author';
+          const year = d.first_publish_year ? `First published ${d.first_publish_year}` : 'Publication year unknown';
+          const editions = d.edition_count ? `${d.edition_count} edition${d.edition_count===1?'':'s'} on record` : '';
+          const olUrl = d.key ? `https://openlibrary.org${d.key}` : `https://openlibrary.org/search?q=${encodeURIComponent(d.title||'')}`;
+          return `
+            <a class="external-result-card" href="${olUrl}" target="_blank" rel="noopener noreferrer">
+              <div class="sr-main">
+                <div class="srloc">${year}${editions ? ' · ' + editions : ''}</div>
+                <h3>${d.title || 'Untitled'}</h3>
+                <div class="srauthor">${author}</div>
+              </div>
+              <span class="ol-link">View on Open Library ↗</span>
+            </a>
+          `;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+function clearBookSearch(){
+  const input = document.getElementById('bookSearchInput');
+  input.value = '';
+  handleBookSearch('');
+  input.focus();
+}
+
+/* ---------------- LIVE CATEGORY BROWSING (Open Library) ---------------- */
+function renderCategoryPage(slug){
+  const cat = dynamicCategories.find(c=>c.slug===slug);
+  return `
+  <div class="section">
+    <div class="section-head">
+      <button class="back-arrow" onclick="goBranches()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+        Back
+      </button>
+      <div class="kicker">Live from Open Library</div>
+      <h2>${cat ? cat.label : 'Browse'}</h2>
+      <p>Real titles pulled straight from Open Library's public catalog for this subject — not typed in by hand, so this works for any subject, not just the ones we stock locally.</p>
+    </div>
+    <div id="categoryResults">
+      <div class="external-loading">Fetching ${cat ? cat.label.toLowerCase() : 'this subject'} from Open Library…</div>
+    </div>
+  </div>`;
+}
+
+async function loadCategory(slug){
+  const el = document.getElementById('categoryResults');
+  if(!el) return;
+
+  if(categoryCache[slug]){
+    renderCategoryBooks(slug, categoryCache[slug]);
+    return;
+  }
+
+  try{
+    const url = `https://openlibrary.org/subjects/${encodeURIComponent(slug)}.json?limit=40`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('Open Library request failed');
+    const data = await res.json();
+    const works = data.works || [];
+    categoryCache[slug] = works;
+
+    // Only render if the user hasn't navigated away while this was loading.
+    if(state.view==='category' && state.categorySlug===slug){
+      renderCategoryBooks(slug, works);
+    }
+  } catch(err){
+    if(state.view==='category' && state.categorySlug===slug && el){
+      el.innerHTML = `<div class="search-empty">Couldn't reach Open Library right now — check your connection and try again.</div>`;
+    }
+  }
+}
+
+function renderCategoryBooks(slug, works){
+  const el = document.getElementById('categoryResults');
+  if(!el) return;
+
+  if(works.length === 0){
+    el.innerHTML = `<div class="search-empty">No books found on Open Library for this subject.</div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="search-results">
+      ${works.map(w=>{
+        const stock = getDynamicStock(slug, w.key);
+        const isAvail = stock.available > 0;
+        const author = (w.authors && w.authors.length) ? w.authors.map(a=>a.name).join(', ') : 'Unknown author';
+        return `
+          <button class="search-result-card" onclick="openDynamicBook('${slug}','${w.key}')">
+            <div class="sr-main">
+              <div class="srloc">${w.first_publish_year ? `First published ${w.first_publish_year}` : 'Open Library'}</div>
+              <h3>${w.title}</h3>
+              <div class="srauthor">${author}</div>
+            </div>
+            <span class="sravail ${isAvail ? 'yes':'no'}">${isAvail ? `${stock.available} of ${stock.total} available` : 'All copies checked out'}</span>
+          </button>
+        `;
+      }).join('')}
+    </div>`;
+}
+
+/* Open Library doesn't track a physical library's real stock, so we generate
+   a stable (not random-on-every-render) copy count per book from a hash of
+   its unique key — deterministic, code-generated, not typed in by hand. */
+function hashString(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+  return h;
+}
+
+function getDynamicStock(slug, key){
+  const storeKey = `${slug}::${key}`;
+  if(!dynamicStockStore[storeKey]){
+    const h = hashString(storeKey);
+    const total = 2 + (h % 5);        // 2–6 copies
+    const available = h % (total+1);  // 0..total
+    dynamicStockStore[storeKey] = { total, available };
+  }
+  return dynamicStockStore[storeKey];
+}
+
+function renderSubjects(){
+  const b = findBranch(state.branchId);
+  return `
+  <div class="section">
+    <div class="section-head">
+      <div class="kicker">Step 2 of 3 · ${b.short}</div>
+      <h2>${b.name}</h2>
+      <p>${b.blurb} Choose a subject to see the titles catalogued under it.</p>
+    </div>
+    <div class="card-list">
+      ${b.subjects.map((s,i)=>`
+        <button class="index-card" onclick="chooseSubject('${s.id}')">
+          <div class="num">Card ${String(i+1).padStart(2,'0')} / ${b.short}</div>
+          <h3>${s.name}</h3>
+          <p>${s.blurb}</p>
+          <span class="count">${s.books.length} titles on shelf</span>
+        </button>
+      `).join('')}
+    </div>
+  </div>`;
+}
+
+function renderBooks(){
+  const b = findBranch(state.branchId);
+  const s = findSubject(b, state.subjectId);
+  return `
+  <div class="section">
+    <div class="section-head">
+      <div class="kicker">Step 3 of 3 · ${b.short} / ${s.name}</div>
+      <h2>${s.name}</h2>
+      <p>Click a spine to see how many copies are on the shelf and reserve one.</p>
+    </div>
+    <div class="shelf">
+      ${s.books.map((bk,i)=>`
+        <button class="spine" style="background:${spineColors[i % spineColors.length]}" onclick="openBook('${b.id}','${s.id}',${i})">
+          <span class="spine-title">${bk.title}</span>
+          <span class="spine-avail">${bk.available}/${bk.total}</span>
+        </button>
+      `).join('')}
+    </div>
+    <p class="empty-note">${s.books.length} title${s.books.length===1?'':'s'} shelved under ${s.name}. Numbers on each spine show copies available out of total copies held.</p>
+  </div>`;
+}
+
+/* ---------------- BOOK MODAL ---------------- */
+/* ---------------- BOOK MODAL ---------------- */
+function openBook(branchId, subjectId, index){
+  const b = findBranch(branchId);
+  const s = findSubject(b, subjectId);
+  const bk = s.books[index];
+  const overlay = document.getElementById('overlay');
+  const card = document.getElementById('bookCard');
+  card.dataset.sourceType = 'local';
+  card.dataset.branch = branchId;
+  card.dataset.subject = subjectId;
+  card.dataset.index = index;
+  renderBookCard(bk);
+  overlay.classList.add('open');
+}
+
+/* Opens the detail modal for a book pulled live from Open Library rather
+   than our local physical catalog. */
+function openDynamicBook(slug, key){
+  const works = categoryCache[slug] || [];
+  const w = works.find(x=>x.key===key);
+  if(!w) return;
+  const stock = getDynamicStock(slug, key);
+  const author = (w.authors && w.authors.length) ? w.authors.map(a=>a.name).join(', ') : 'Unknown author';
+
+  const overlay = document.getElementById('overlay');
+  const card = document.getElementById('bookCard');
+  card.dataset.sourceType = 'dynamic';
+  card.dataset.slug = slug;
+  card.dataset.key = key;
+
+  renderBookCard({
+    title: w.title,
+    author,
+    edition: w.first_publish_year ? `First published ${w.first_publish_year}` : 'Edition unknown',
+    call: `OL · ${key.replace('/works/','')}`,
+    total: stock.total,
+    available: stock.available,
+    desc: 'Catalogued live via the Open Library API — full descriptions aren\u2019t provided by this source record. Use "View on Open Library" for the full listing.'
+  });
+  overlay.classList.add('open');
+}
+
+function renderBookCard(bk){
+  const card = document.getElementById('bookCard');
+  const isAvail = bk.available > 0;
+  const isDynamic = card.dataset.sourceType === 'dynamic';
+  const branchId = card.dataset.branch, subjectId = card.dataset.subject, index = card.dataset.index;
+  const slug = card.dataset.slug, key = card.dataset.key;
+  const faved = isDynamic ? isFavouritedDynamic(slug, key) : isFavourited(branchId, subjectId, Number(index));
+  const favClick = isDynamic ? `toggleFavouriteDynamic('${slug}','${key}')` : `toggleFavourite('${branchId}','${subjectId}',${index})`;
+  const reserveClick = isDynamic ? `reserveDynamicBook()` : `reserveBook()`;
+
+  card.innerHTML = `
+    <div class="bc-top">
+      <div>
+        <div class="call">${isDynamic ? 'Ref.' : 'Call No.'} ${bk.call}</div>
+        <h2>${bk.title}</h2>
+        <div class="author">${bk.author}</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="fav-star-btn ${faved?'active':''}" title="${faved?'Remove from Favourites':'Save to Favourites'}" onclick="${favClick}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="${faved?'currentColor':'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.8H20l-4.9 3.6 1.9 5.8L12 13.6 6.9 17.2l1.9-5.8L4 7.8h6.1z"></path></svg>
+        </button>
+        <button class="close-btn" onclick="closeModal()">✕</button>
+      </div>
+    </div>
+    <div class="bc-body">
+      <div class="bc-meta">
+        <span><b>${isDynamic ? 'First published' : 'Edition'}</b> — ${bk.edition}</span>
+        <span><b>Total copies</b> — ${bk.total}</span>
+        <span><b>On shelf now</b> — ${bk.available}</span>
+      </div>
+      <p class="bc-desc">${bk.desc}</p>
+      ${isDynamic ? `<p class="bc-desc" style="margin-top:-14px;"><a href="https://openlibrary.org${key}" target="_blank" rel="noopener noreferrer" style="color:var(--pine); font-family:'IBM Plex Mono', monospace; font-size:0.78rem;">View on Open Library ↗</a></p>` : ''}
+      <div class="stamp ${isAvail ? 'avail':'gone'}">${isAvail ? `${bk.available} of ${bk.total} available` : 'All copies checked out'}</div>
+      <div class="reserve-row" id="reserveRow">
+        ${isAvail
+          ? `<button class="reserve-btn" onclick="${reserveClick}">Reserve this copy</button>`
+          : `<button class="reserve-btn" disabled>Reserve this copy</button><span class="confirm-msg" style="color:var(--gone)">Join the waitlist at the circulation desk.</span>`
+        }
+      </div>
+    </div>
+  `;
+}
+
+function reserveBook(){
+  const card = document.getElementById('bookCard');
+  const branchId = card.dataset.branch, subjectId = card.dataset.subject, index = Number(card.dataset.index);
+  const b = findBranch(branchId);
+  const s = findSubject(b, subjectId);
+  const bk = s.books[index];
+  if(bk.available > 0){
+    bk.available -= 1;
+    renderBookCard(bk);
+    const row = document.getElementById('reserveRow');
+    row.innerHTML = `<span class="confirm-msg">✓ Reserved — pick up at the circulation desk within 24 hours, or it automatically returns to stock.</span>`;
+
+    // Schedule an automatic return to stock if the copy isn't collected in time.
+    const timeoutId = setTimeout(()=>{ expireReservation(branchId, subjectId, index); }, RESERVATION_HOLD_MS);
+    activeReservations.push({ type:'local', branchId, subjectId, index, expiresAt: Date.now() + RESERVATION_HOLD_MS, timeoutId });
+
+    refreshCurrentView();
+  }
+}
+
+/* Same reservation flow, for a book sourced live from Open Library. */
+function reserveDynamicBook(){
+  const card = document.getElementById('bookCard');
+  const slug = card.dataset.slug, key = card.dataset.key;
+  const stock = getDynamicStock(slug, key);
+  if(stock.available > 0){
+    stock.available -= 1;
+
+    const works = categoryCache[slug] || [];
+    const w = works.find(x=>x.key===key);
+    const author = (w && w.authors && w.authors.length) ? w.authors.map(a=>a.name).join(', ') : 'Unknown author';
+    renderBookCard({
+      title: w ? w.title : '',
+      author,
+      edition: w && w.first_publish_year ? `First published ${w.first_publish_year}` : 'Edition unknown',
+      call: `OL · ${key.replace('/works/','')}`,
+      total: stock.total,
+      available: stock.available,
+      desc: 'Catalogued live via the Open Library API — full descriptions aren\u2019t provided by this source record. Use "View on Open Library" for the full listing.'
+    });
+    const row = document.getElementById('reserveRow');
+    row.innerHTML = `<span class="confirm-msg">✓ Reserved — pick up at the circulation desk within 24 hours, or it automatically returns to stock.</span>`;
+
+    const timeoutId = setTimeout(()=>{ expireReservation(null, null, null, slug, key); }, RESERVATION_HOLD_MS);
+    activeReservations.push({ type:'dynamic', slug, key, expiresAt: Date.now() + RESERVATION_HOLD_MS, timeoutId });
+
+    refreshCurrentView();
+  }
+}
+
+/* Called automatically 24 hours after a reservation if the book was never
+   collected — puts the copy back into available stock for other users.
+   Handles both local catalog books and live Open Library books. */
+function expireReservation(branchId, subjectId, index, dynSlug, dynKey){
+  const card = document.getElementById('bookCard');
+
+  if(dynSlug){
+    const stock = getDynamicStock(dynSlug, dynKey);
+    stock.available = Math.min(stock.total, stock.available + 1);
+    activeReservations = activeReservations.filter(r=>!(r.type==='dynamic' && r.slug===dynSlug && r.key===dynKey));
+    if(card && card.dataset.sourceType==='dynamic' && card.dataset.slug===dynSlug && card.dataset.key===dynKey){
+      openDynamicBook(dynSlug, dynKey);
+    }
+    refreshCurrentView();
+    return;
+  }
+
+  const branch = findBranch(branchId);
+  const subject = branch ? findSubject(branch, subjectId) : null;
+  const bk = subject ? subject.books[index] : null;
+  if(!bk) return;
+
+  bk.available = Math.min(bk.total, bk.available + 1);
+  activeReservations = activeReservations.filter(r=>
+    !(r.type==='local' && r.branchId===branchId && r.subjectId===subjectId && r.index===index)
+  );
+
+  // If the same book's detail card is open, refresh it to show it's available again.
+  if(card && card.dataset.sourceType==='local' && card.dataset.branch===branchId && card.dataset.subject===subjectId && Number(card.dataset.index)===index){
+    renderBookCard(bk);
+  }
+
+  refreshCurrentView();
+}
+
+/* Re-renders whichever list view is currently on screen so stock counts stay accurate. */
+function refreshCurrentView(){
+  if(state.view==='books'){
+    document.getElementById('main').innerHTML = renderBooks();
+  } else if(state.view==='branches'){
+    const input = document.getElementById('bookSearchInput');
+    if(input && input.value.trim()) handleBookSearch(input.value);
+  } else if(state.view==='favourites'){
+    document.getElementById('main').innerHTML = renderFavourites();
+  } else if(state.view==='category' && state.categorySlug && categoryCache[state.categorySlug]){
+    renderCategoryBooks(state.categorySlug, categoryCache[state.categorySlug]);
+  }
+}
+
+function closeModal(){
+  document.getElementById('overlay').classList.remove('open');
+}
+
+/* ---------------- SIGN-IN MODAL ---------------- */
+function openSignIn(){
+  document.getElementById('signinOverlay').classList.add('open');
+}
+function closeSignIn(){
+  document.getElementById('signinOverlay').classList.remove('open');
+  document.getElementById('signinForm').reset();
+  document.getElementById('signinForm').style.display = '';
+  document.getElementById('signinResult').innerHTML = '';
+}
+function handleSignIn(e){
+  e.preventDefault();
+  const roll = document.getElementById('rollNo').value.trim();
+  const form = document.getElementById('signinForm');
+  const result = document.getElementById('signinResult');
+  form.style.display = 'none';
+  result.innerHTML = `<div class="signin-confirm">✓ Signed in as ${roll || 'member'} — welcome back.</div>`;
+
+  account.signedIn = true;
+  account.name = roll || 'Account';
+  renderAccountArea();
+
+  setTimeout(()=>{ closeSignIn(); }, 900);
+  return false;
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ closeModal(); closeSignIn(); }
+});
+
+/* ---------------- INIT ---------------- */
+render();
+</script>
+</body>
+</html>
