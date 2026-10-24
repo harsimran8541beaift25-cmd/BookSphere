@@ -208,9 +208,10 @@ function renderBreadcrumb(){
   const bc = document.getElementById('breadcrumb');
   let parts = [`<span onclick="goHome()">Home</span>`];
 
-  if(state.view==='favourites' || state.view==='history'){
+  if(state.view==='favourites' || state.view==='history' || state.view==='reservations'){
+    const labels = { favourites:'Favourites', history:'Search History', reservations:'My Reservations' };
     parts.push(`<span class="sep">/</span>`);
-    parts.push(`<span class="current">${state.view==='favourites' ? 'Favourites' : 'Search History'}</span>`);
+    parts.push(`<span class="current">${labels[state.view]}</span>`);
     bc.innerHTML = parts.join('');
     return;
   }
@@ -253,6 +254,7 @@ function render(){
   else if(state.view==='books') main.innerHTML = renderBooks();
   else if(state.view==='favourites') main.innerHTML = renderFavourites();
   else if(state.view==='history') main.innerHTML = renderHistory();
+  else if(state.view==='reservations') main.innerHTML = renderReservations();
   else if(state.view==='category'){ main.innerHTML = renderCategoryPage(state.categorySlug); loadCategory(state.categorySlug); }
   window.scrollTo({top:0, behavior:'instant'});
 }
@@ -274,6 +276,11 @@ function renderAccountArea(){
       <svg class="caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
     </button>
     <div class="account-dropdown ${account.menuOpen?'open':''}" id="accountDropdown">
+      <button class="account-dropdown-item" onclick="openReservationsView()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+        My Reservations
+        ${(()=>{ const n = activeReservations.filter(r=>r.roll===account.name).length; return n ? `<span class="dd-count">${n}</span>` : ''; })()}
+      </button>
       <button class="account-dropdown-item" onclick="openFavouritesView()">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l1.9 5.8H20l-4.9 3.6 1.9 5.8L12 13.6 6.9 17.2l1.9-5.8L4 7.8h6.1z"></path></svg>
         Favourites
@@ -311,6 +318,7 @@ function signOut(){
   account.signedIn = false;
   account.name = '';
   account.menuOpen = false;
+  try{ localStorage.removeItem(SESSION_KEY); }catch(_){}
   goHome();
 }
 
@@ -809,7 +817,6 @@ function renderBooks(){
 }
 
 /* ---------------- BOOK MODAL ---------------- */
-/* ---------------- BOOK MODAL ---------------- */
 function openBook(branchId, subjectId, index){
   const b = findBranch(branchId);
   const s = findSubject(b, subjectId);
@@ -894,89 +901,226 @@ function renderBookCard(bk){
   `;
 }
 
+/* ---------------- RESERVATIONS ---------------- */
+const RES_KEY = 'booksphere_reservations';
+
+function saveReservations(){
+  try{
+    localStorage.setItem(RES_KEY, JSON.stringify(activeReservations.map(({timeoutId, ...r})=>r)));
+  }catch(_){}
+}
+
+/* Guests can browse, but reserving needs an account — open the sign-in popup instead. */
+function requireSignIn(){
+  if(account.signedIn) return true;
+  closeModal();
+  openSignIn();
+  if(Object.keys(loadUsers()).length > 0){
+    showAuthMessage('Please sign in to reserve a book.', 'error');
+  }
+  return false;
+}
+
+function sameBook(r, t){
+  if(r.type !== t.type) return false;
+  return t.type==='local'
+    ? (r.branchId===t.branchId && r.subjectId===t.subjectId && r.index===t.index)
+    : (r.slug===t.slug && r.key===t.key);
+}
+
+function scheduleExpiry(rec){
+  const wait = Math.max(0, rec.expiresAt - Date.now());
+  rec.timeoutId = setTimeout(()=>{ releaseReservation(rec.id); }, wait);
+}
+
+function createReservation(base){
+  if(activeReservations.some(r=>r.roll===account.name && sameBook(r, base))){
+    const row = document.getElementById('reserveRow');
+    if(row) row.innerHTML = `<span class="confirm-msg" style="color:var(--gone)">You have already reserved a copy of this book. See My Reservations.</span>`;
+    return null;
+  }
+  const now = Date.now();
+  const rec = {
+    id: now + '-' + Math.random().toString(36).slice(2,7),
+    roll: account.name,
+    reservedAt: now,
+    expiresAt: now + RESERVATION_HOLD_MS,
+    ...base
+  };
+  activeReservations.push(rec);
+  scheduleExpiry(rec);
+  saveReservations();
+  return rec;
+}
+
 function reserveBook(){
+  if(!requireSignIn()) return;
   const card = document.getElementById('bookCard');
   const branchId = card.dataset.branch, subjectId = card.dataset.subject, index = Number(card.dataset.index);
   const b = findBranch(branchId);
   const s = findSubject(b, subjectId);
   const bk = s.books[index];
-  if(bk.available > 0){
-    bk.available -= 1;
-    renderBookCard(bk);
-    const row = document.getElementById('reserveRow');
-    row.innerHTML = `<span class="confirm-msg">✓ Reserved — pick up at the circulation desk within 24 hours, or it automatically returns to stock.</span>`;
+  if(bk.available <= 0) return;
 
-    // Schedule an automatic return to stock if the copy isn't collected in time.
-    const timeoutId = setTimeout(()=>{ expireReservation(branchId, subjectId, index); }, RESERVATION_HOLD_MS);
-    activeReservations.push({ type:'local', branchId, subjectId, index, expiresAt: Date.now() + RESERVATION_HOLD_MS, timeoutId });
+  const rec = createReservation({ type:'local', branchId, subjectId, index, title:bk.title, author:bk.author, call:bk.call });
+  if(!rec) return;
 
-    refreshCurrentView();
-  }
+  bk.available -= 1;
+  renderBookCard(bk);
+  const row = document.getElementById('reserveRow');
+  row.innerHTML = `<span class="confirm-msg">✓ Reserved — pick up at the circulation desk within 24 hours, or it automatically returns to stock. See My Reservations.</span>`;
+  refreshCurrentView();
 }
 
 /* Same reservation flow, for a book sourced live from Open Library. */
 function reserveDynamicBook(){
+  if(!requireSignIn()) return;
   const card = document.getElementById('bookCard');
   const slug = card.dataset.slug, key = card.dataset.key;
   const stock = getDynamicStock(slug, key);
-  if(stock.available > 0){
-    stock.available -= 1;
+  if(stock.available <= 0) return;
 
-    const works = categoryCache[slug] || [];
-    const w = works.find(x=>x.key===key);
-    const author = (w && w.authors && w.authors.length) ? w.authors.map(a=>a.name).join(', ') : 'Unknown author';
-    renderBookCard({
-      title: w ? w.title : '',
-      author,
-      edition: w && w.first_publish_year ? `First published ${w.first_publish_year}` : 'Edition unknown',
-      call: `OL · ${key.replace('/works/','')}`,
-      total: stock.total,
-      available: stock.available,
-      desc: 'Catalogued live via the Open Library API — full descriptions aren\u2019t provided by this source record. Use "View on Open Library" for the full listing.'
-    });
-    const row = document.getElementById('reserveRow');
-    row.innerHTML = `<span class="confirm-msg">✓ Reserved — pick up at the circulation desk within 24 hours, or it automatically returns to stock.</span>`;
+  const works = categoryCache[slug] || [];
+  const w = works.find(x=>x.key===key);
+  const author = (w && w.authors && w.authors.length) ? w.authors.map(a=>a.name).join(', ') : 'Unknown author';
+  const title = w ? w.title : 'Untitled';
+  const call = `OL · ${key.replace('/works/','')}`;
 
-    const timeoutId = setTimeout(()=>{ expireReservation(null, null, null, slug, key); }, RESERVATION_HOLD_MS);
-    activeReservations.push({ type:'dynamic', slug, key, expiresAt: Date.now() + RESERVATION_HOLD_MS, timeoutId });
+  const rec = createReservation({ type:'dynamic', slug, key, title, author, call });
+  if(!rec) return;
 
-    refreshCurrentView();
-  }
+  stock.available -= 1;
+  renderBookCard({
+    title, author,
+    edition: w && w.first_publish_year ? `First published ${w.first_publish_year}` : 'Edition unknown',
+    call,
+    total: stock.total,
+    available: stock.available,
+    desc: 'Catalogued live via the Open Library API — full descriptions aren\u2019t provided by this source record. Use "View on Open Library" for the full listing.'
+  });
+  const row = document.getElementById('reserveRow');
+  row.innerHTML = `<span class="confirm-msg">✓ Reserved — pick up at the circulation desk within 24 hours, or it automatically returns to stock. See My Reservations.</span>`;
+  refreshCurrentView();
 }
 
-/* Called automatically 24 hours after a reservation if the book was never
-   collected — puts the copy back into available stock for other users.
-   Handles both local catalog books and live Open Library books. */
-function expireReservation(branchId, subjectId, index, dynSlug, dynKey){
+/* Puts a copy back into stock. Runs automatically when the 24-hour hold ends,
+   or immediately when the user cancels from My Reservations. */
+function releaseReservation(id){
+  const rec = activeReservations.find(r=>r.id===id);
+  if(!rec) return;
+  clearTimeout(rec.timeoutId);
+  activeReservations = activeReservations.filter(r=>r.id!==id);
+  saveReservations();
+
   const card = document.getElementById('bookCard');
+  const modalOpen = document.getElementById('overlay').classList.contains('open');
 
-  if(dynSlug){
-    const stock = getDynamicStock(dynSlug, dynKey);
+  if(rec.type==='dynamic'){
+    const stock = getDynamicStock(rec.slug, rec.key);
     stock.available = Math.min(stock.total, stock.available + 1);
-    activeReservations = activeReservations.filter(r=>!(r.type==='dynamic' && r.slug===dynSlug && r.key===dynKey));
-    if(card && card.dataset.sourceType==='dynamic' && card.dataset.slug===dynSlug && card.dataset.key===dynKey){
-      openDynamicBook(dynSlug, dynKey);
+    if(modalOpen && card.dataset.sourceType==='dynamic' && card.dataset.slug===rec.slug && card.dataset.key===rec.key){
+      openDynamicBook(rec.slug, rec.key);
     }
-    refreshCurrentView();
-    return;
+  } else {
+    const branch = findBranch(rec.branchId);
+    const subject = branch ? findSubject(branch, rec.subjectId) : null;
+    const bk = subject ? subject.books[rec.index] : null;
+    if(bk){
+      bk.available = Math.min(bk.total, bk.available + 1);
+      if(modalOpen && card.dataset.sourceType==='local' && card.dataset.branch===rec.branchId && card.dataset.subject===rec.subjectId && Number(card.dataset.index)===rec.index){
+        renderBookCard(bk);
+      }
+    }
   }
-
-  const branch = findBranch(branchId);
-  const subject = branch ? findSubject(branch, subjectId) : null;
-  const bk = subject ? subject.books[index] : null;
-  if(!bk) return;
-
-  bk.available = Math.min(bk.total, bk.available + 1);
-  activeReservations = activeReservations.filter(r=>
-    !(r.type==='local' && r.branchId===branchId && r.subjectId===subjectId && r.index===index)
-  );
-
-  // If the same book's detail card is open, refresh it to show it's available again.
-  if(card && card.dataset.sourceType==='local' && card.dataset.branch===branchId && card.dataset.subject===subjectId && Number(card.dataset.index)===index){
-    renderBookCard(bk);
-  }
-
   refreshCurrentView();
+  renderAccountArea();
+}
+
+/* After a page refresh: re-apply still-active holds to stock, drop expired ones. */
+function restoreReservations(){
+  let saved = [];
+  try{ saved = JSON.parse(localStorage.getItem(RES_KEY)) || []; }catch(_){}
+  const now = Date.now();
+  activeReservations = [];
+  saved.forEach(rec=>{
+    if(!rec || rec.expiresAt <= now) return;
+    if(rec.type==='dynamic'){
+      const stock = getDynamicStock(rec.slug, rec.key);
+      if(stock.available > 0) stock.available -= 1;
+    } else {
+      const branch = findBranch(rec.branchId);
+      const subject = branch ? findSubject(branch, rec.subjectId) : null;
+      const bk = subject ? subject.books[rec.index] : null;
+      if(!bk) return;
+      if(bk.available > 0) bk.available -= 1;
+    }
+    activeReservations.push(rec);
+    scheduleExpiry(rec);
+  });
+  saveReservations();
+}
+
+function openReservationsView(){
+  account.menuOpen = false;
+  state.view = 'reservations'; state.branchId=null; state.subjectId=null;
+  render();
+}
+
+function formatDateTime(ts){
+  return new Date(ts).toLocaleString([], { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function timeLeftLabel(ts){
+  const ms = ts - Date.now();
+  if(ms <= 0) return 'expiring now';
+  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000);
+  return `${h}h ${m}m left`;
+}
+
+function renderReservations(){
+  const mine = activeReservations
+    .filter(r=>r.roll===account.name)
+    .sort((x,y)=>y.reservedAt - x.reservedAt);
+
+  if(mine.length === 0){
+    return `
+    <div class="section">
+      <div class="section-head">
+        <div class="kicker">My Account</div>
+        <h2>My Reservations</h2>
+        <p>Books you reserve will be listed here with their pick-up deadline.</p>
+      </div>
+      <p class="empty-note">You haven't reserved any books yet. Open a book and press "Reserve this copy".</p>
+    </div>`;
+  }
+
+  return `
+  <div class="section">
+    <div class="section-head">
+      <div class="kicker">My Account</div>
+      <h2>My Reservations</h2>
+      <p>${mine.length} book${mine.length===1?'':'s'} on hold. Pick each one up at the circulation desk before its deadline, or it returns to stock automatically.</p>
+    </div>
+    <div class="search-results">
+      ${mine.map(r=>{
+        let loc = 'Open Library';
+        if(r.type==='local'){
+          const branch = findBranch(r.branchId);
+          const subject = branch ? findSubject(branch, r.subjectId) : null;
+          if(branch && subject) loc = `${branch.short} · ${subject.name}`;
+        }
+        return `
+        <div class="search-result-card res-card">
+          <div class="sr-main">
+            <div class="srloc">${loc} · Call No. ${r.call}</div>
+            <h3>${r.title}</h3>
+            <div class="srauthor">${r.author}</div>
+            <div class="res-meta">Reserved ${formatDateTime(r.reservedAt)}<br>Pick up by ${formatDateTime(r.expiresAt)} · ${timeLeftLabel(r.expiresAt)}</div>
+          </div>
+          <button class="res-cancel-btn" onclick="releaseReservation('${r.id}')">Cancel</button>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
 }
 
 /* Re-renders whichever list view is currently on screen so stock counts stay accurate. */
@@ -986,6 +1130,8 @@ function refreshCurrentView(){
   } else if(state.view==='branches'){
     const input = document.getElementById('bookSearchInput');
     if(input && input.value.trim()) handleBookSearch(input.value);
+  } else if(state.view==='reservations'){
+    document.getElementById('main').innerHTML = renderReservations();
   } else if(state.view==='favourites'){
     document.getElementById('main').innerHTML = renderFavourites();
   } else if(state.view==='category' && state.categorySlug && categoryCache[state.categorySlug]){
@@ -997,29 +1143,157 @@ function closeModal(){
   document.getElementById('overlay').classList.remove('open');
 }
 
+/* ---------------- ACCOUNT STORAGE (saved in this browser) ---------------- */
+const USERS_KEY     = 'booksphere_users';
+const SESSION_KEY   = 'booksphere_session';
+const LAST_ROLL_KEY = 'booksphere_last_roll';
+
+function loadUsers(){
+  try{ return JSON.parse(localStorage.getItem(USERS_KEY)) || {}; }
+  catch(e){ return {}; }
+}
+function saveUsers(users){
+  try{ localStorage.setItem(USERS_KEY, JSON.stringify(users)); return true; }
+  catch(e){ return false; }
+}
+function normRoll(r){ return r.trim().toUpperCase(); }
+
+function newSalt(){
+  const arr = new Uint8Array(12);
+  crypto.getRandomValues(arr);
+  return Array.from(arr).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+/* Passwords are never stored as plain text — only a salted SHA-256 hash. */
+async function hashPassword(pw, salt){
+  const data = new TextEncoder().encode(salt + ':' + pw);
+  if(window.crypto && crypto.subtle){
+    const buf = await crypto.subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }
+  let h = 0; // fallback for non-secure contexts
+  for(const ch of salt + pw){ h = (h * 31 + ch.charCodeAt(0)) >>> 0; }
+  return 'f' + h.toString(16);
+}
+
 /* ---------------- SIGN-IN MODAL ---------------- */
+function showAuthMessage(text, type){
+  const el = document.getElementById('signinResult');
+  el.innerHTML = text ? `<div class="${type==='error' ? 'signin-error' : 'signin-confirm'}">${text}</div>` : '';
+}
+
+function showAuthView(view){
+  document.getElementById('signinForm').style.display          = view==='login'  ? '' : 'none';
+  document.getElementById('createAccountForm').style.display   = view==='create' ? '' : 'none';
+  document.getElementById('forgotPasswordForm').style.display  = view==='forgot' ? '' : 'none';
+  document.getElementById('authTitle').textContent =
+    view==='login' ? 'Sign In' : view==='create' ? 'Create Account' : 'Reset Password';
+  document.getElementById('authCall').textContent =
+    view==='create' ? 'New Member' : view==='forgot' ? 'Account Recovery' : 'Member Access';
+  showAuthMessage('');
+}
+
+function showLoginForm(){
+  showAuthView('login');
+  const last = localStorage.getItem(LAST_ROLL_KEY);
+  if(last) document.getElementById('rollNo').value = last;
+}
+function openCreateAccount(){ showAuthView('create'); }
+function openForgotPassword(){ showAuthView('forgot'); }
+
 function openSignIn(){
   document.getElementById('signinOverlay').classList.add('open');
+  // No account exists yet → ask the user to create one first.
+  if(Object.keys(loadUsers()).length === 0){
+    showAuthView('create');
+    showAuthMessage('No account found on this device. Please create an account first.', 'error');
+  } else {
+    showLoginForm();
+  }
 }
+
 function closeSignIn(){
   document.getElementById('signinOverlay').classList.remove('open');
-  document.getElementById('signinForm').reset();
-  document.getElementById('signinForm').style.display = '';
-  document.getElementById('signinResult').innerHTML = '';
+  ['signinForm','createAccountForm','forgotPasswordForm'].forEach(id=>document.getElementById(id).reset());
+  showAuthView('login');
 }
-function handleSignIn(e){
+
+async function handleCreateAccount(e){
   e.preventDefault();
-  const roll = document.getElementById('rollNo').value.trim();
-  const form = document.getElementById('signinForm');
-  const result = document.getElementById('signinResult');
-  form.style.display = 'none';
-  result.innerHTML = `<div class="signin-confirm">✓ Signed in as ${roll || 'member'} — welcome back.</div>`;
+  const roll = normRoll(document.getElementById('newRollNo').value);
+  const pw   = document.getElementById('newPassword').value;
+  const pw2  = document.getElementById('confirmPassword').value;
+  const users = loadUsers();
+
+  if(roll.length < 3)  return showAuthMessage('Please enter a valid roll number.', 'error'), false;
+  if(users[roll])      return showAuthMessage('An account with this roll number already exists. Please sign in.', 'error'), false;
+  if(pw.length < 6)    return showAuthMessage('Password must be at least 6 characters.', 'error'), false;
+  if(pw !== pw2)       return showAuthMessage('Passwords do not match.', 'error'), false;
+
+  const salt = newSalt();
+  users[roll] = { salt, hash: await hashPassword(pw, salt), created: Date.now() };
+  if(!saveUsers(users)) return showAuthMessage('Could not save the account (browser storage is blocked).', 'error'), false;
+
+  try{ localStorage.setItem(LAST_ROLL_KEY, roll); }catch(_){}
+  document.getElementById('createAccountForm').reset();
+  showLoginForm();
+  document.getElementById('rollNo').value = roll;
+  showAuthMessage('✓ Account created. Please sign in with your new password.');
+  return false;
+}
+
+async function handleSignIn(e){
+  e.preventDefault();
+  const roll = normRoll(document.getElementById('rollNo').value);
+  const pw   = document.getElementById('pw').value;
+  const users = loadUsers();
+  const user = users[roll];
+
+  // No account for this roll number → switch to Create Account, keeping the roll number typed.
+  if(!user){
+    openCreateAccount();
+    document.getElementById('newRollNo').value = roll;
+    showAuthMessage('No account found for this roll number. Please create an account first.', 'error');
+    return false;
+  }
+  if(await hashPassword(pw, user.salt) !== user.hash){
+    showAuthMessage('Incorrect password. Try again or use "Forgot Password?".', 'error');
+    return false;
+  }
 
   account.signedIn = true;
-  account.name = roll || 'Account';
+  account.name = roll;
+  try{
+    localStorage.setItem(SESSION_KEY, roll);     // stay signed in after refresh
+    localStorage.setItem(LAST_ROLL_KEY, roll);   // prefill next time
+  }catch(_){}
   renderAccountArea();
 
+  document.getElementById('signinForm').style.display = 'none';
+  showAuthMessage(`✓ Signed in as ${roll} — welcome back.`);
   setTimeout(()=>{ closeSignIn(); }, 900);
+  return false;
+}
+
+async function handleForgotPassword(e){
+  e.preventDefault();
+  const roll = normRoll(document.getElementById('forgotRollNo').value);
+  const pw   = document.getElementById('forgotNewPassword').value;
+  const pw2  = document.getElementById('forgotConfirmPassword').value;
+  const users = loadUsers();
+
+  if(!users[roll]) return showAuthMessage('No account found for this roll number.', 'error'), false;
+  if(pw.length < 6) return showAuthMessage('Password must be at least 6 characters.', 'error'), false;
+  if(pw !== pw2)    return showAuthMessage('Passwords do not match.', 'error'), false;
+
+  const salt = newSalt();
+  users[roll] = { ...users[roll], salt, hash: await hashPassword(pw, salt) };
+  saveUsers(users);
+
+  document.getElementById('forgotPasswordForm').reset();
+  showLoginForm();
+  document.getElementById('rollNo').value = roll;
+  showAuthMessage('✓ Password reset. Please sign in with your new password.');
   return false;
 }
 
@@ -1028,4 +1302,14 @@ document.addEventListener('keydown', e=>{
 });
 
 /* ---------------- INIT ---------------- */
+(function restoreSession(){
+  try{
+    const roll = localStorage.getItem(SESSION_KEY);
+    if(roll && loadUsers()[roll]){
+      account.signedIn = true;
+      account.name = roll;
+    }
+  }catch(_){}
+})();
+restoreReservations();
 render();

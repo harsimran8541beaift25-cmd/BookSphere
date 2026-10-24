@@ -971,6 +971,16 @@
     text-align:center;
     padding:8px 0 2px;
   }
+  /* .signin-error{
+  font-family:'IBM Plex Mono', monospace;
+  font-size:0.78rem;
+  color:var(--gone);
+  background:var(--gone-bg);
+  border:1px solid var(--gone);
+  padding:9px 12px;
+  margin-top:14px;
+  text-align:center;
+} */
   .auth-links {
     display: flex;
     justify-content: space-between;
@@ -1018,3 +1028,23 @@
     .open-book .flip-page{width:148px; height:200px;}
     .open-book .spine-line{height:212px;}
   }
+  .res-meta{
+  margin-top:8px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:0.7rem;
+  line-height:1.6;
+  color:var(--ink-soft);
+}
+.res-card:hover{ transform:none; }
+.res-cancel-btn{
+  flex:none;
+  background:none;
+  border:1px solid var(--maroon);
+  color:var(--maroon);
+  padding:8px 16px;
+  font-family:'IBM Plex Mono', monospace;
+  font-size:0.72rem;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+}
+.res-cancel-btn:hover{ background:var(--maroon); color:#fff2e6; }
